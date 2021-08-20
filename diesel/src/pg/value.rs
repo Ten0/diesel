@@ -15,6 +15,18 @@ pub(crate) trait TypeOidLookup {
     fn lookup(&self) -> NonZeroU32;
 }
 
+pub(crate) trait HasTypeOidLookup<'a> {
+    fn type_oid_lookup(self) -> &'a dyn TypeOidLookup;
+}
+impl<'a, T> HasTypeOidLookup<'a> for &'a T
+where
+    T: TypeOidLookup,
+{
+    fn type_oid_lookup(self) -> &'a dyn TypeOidLookup {
+        self
+    }
+}
+
 impl<F> TypeOidLookup for F
 where
     F: Fn() -> NonZeroU32,
@@ -24,9 +36,9 @@ where
     }
 }
 
-impl<'a> TypeOidLookup for PgValue<'a> {
-    fn lookup(&self) -> NonZeroU32 {
-        self.type_oid_lookup.lookup()
+impl<'a> HasTypeOidLookup<'a> for &'_ PgValue<'a> {
+    fn type_oid_lookup(self) -> &'a dyn TypeOidLookup {
+        self.type_oid_lookup
     }
 }
 
@@ -55,10 +67,10 @@ impl<'a> PgValue<'a> {
         }
     }
 
-    pub(crate) fn new(raw_value: &'a [u8], type_oid_lookup: &'a dyn TypeOidLookup) -> Self {
+    pub(crate) fn new(raw_value: &'a [u8], type_oid_lookup: impl HasTypeOidLookup<'a>) -> Self {
         Self {
             raw_value,
-            type_oid_lookup,
+            type_oid_lookup: type_oid_lookup.type_oid_lookup(),
         }
     }
 
