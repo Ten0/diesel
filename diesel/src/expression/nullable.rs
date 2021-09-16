@@ -51,7 +51,7 @@ impl<T, DB> Selectable<DB> for Option<T>
 where
     DB: Backend,
     T: Selectable<DB>,
-    Nullable<T::SelectExpression>: Expression,
+    Nullable<T::SelectExpression>: SelectableExpressionConstraintTrait<DB, Self>,
 {
     type SelectExpression = Nullable<T::SelectExpression>;
 

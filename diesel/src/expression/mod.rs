@@ -88,7 +88,7 @@ pub mod dsl {
 pub use self::sql_literal::{SqlLiteral, UncheckedBind};
 
 use crate::backend::Backend;
-use crate::dsl::AsExprOf;
+use crate::dsl::{AsExprOf, SqlTypeOf};
 use crate::sql_types::{HasSqlType, SingleValue, SqlType};
 
 /// Represents a typed fragment of SQL.
@@ -412,10 +412,24 @@ pub trait Selectable<DB: Backend> {
     /// The expression you'd like to select.
     ///
     /// This is typically a tuple of corresponding to the table columns of your struct's fields.
-    type SelectExpression: Expression;
+    type SelectExpression: SelectableExpressionConstraintTrait<DB, Self>;
 
     /// Construct an instance of the expression
     fn construct_selection() -> Self::SelectExpression;
+}
+/// This trait defines constraints for the `SelectExpression` associated type of the `Selectable`
+/// trait.
+/// We have this as constraint on `SelectExpression` instead of just `SelectExpression: Expression`
+/// to provide more explicit error messages than "`SelectBy: CompatibleType` is not satisfied"
+/// when there's a mismatch between the `Queryable`/`FromSqlRow` impl of the struct that implements
+/// Selectable (its rust types) and the sql type of the `SelectExpression`.
+pub trait SelectableExpressionConstraintTrait<DB, S: ?Sized>: Expression {}
+impl<E, DB, S: ?Sized> SelectableExpressionConstraintTrait<DB, S> for E
+where
+    DB: Backend,
+    E: Expression,
+    S: crate::deserialize::FromSqlRow<SqlTypeOf<E>, DB>,
+{
 }
 
 #[doc(inline)]

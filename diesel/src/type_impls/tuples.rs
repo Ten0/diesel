@@ -5,8 +5,8 @@ use crate::deserialize::{
 };
 use crate::expression::{
     is_contained_in_group_by, AppearsOnTable, AsExpression, AsExpressionList, Expression,
-    IsContainedInGroupBy, QueryMetadata, Selectable, SelectableExpression, TypedExpressionType,
-    ValidGrouping,
+    IsContainedInGroupBy, QueryMetadata, Selectable, SelectableExpression,
+    SelectableExpressionConstraintTrait, TypedExpressionType, ValidGrouping,
 };
 use crate::insertable::{CanInsertInSingleQuery, InsertValues, Insertable};
 use crate::query_builder::*;
@@ -65,6 +65,7 @@ macro_rules! tuple_impls {
             where
                 __DB: Backend,
                 $($T: Selectable<__DB>),+,
+                ($($T::SelectExpression,)+): SelectableExpressionConstraintTrait<__DB, Self>,
             {
                 type SelectExpression = ($($T::SelectExpression,)+);
 
