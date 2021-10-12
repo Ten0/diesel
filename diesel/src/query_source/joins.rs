@@ -43,64 +43,64 @@ impl<Left, Right, Kind> Join<Left, Right, Kind> {
     }
 }
 
-impl<Left, Right> QuerySource for Join<Left, Right, Inner>
+impl<'r, Left, Right> QuerySource<'r> for Join<Left, Right, Inner>
 where
-    Left: QuerySource + AppendSelection<Right::DefaultSelection>,
-    Right: QuerySource,
+    Left: QuerySource<'r> + AppendSelection<Right::DefaultSelection>,
+    Right: QuerySource<'r>,
     Left::Output: SelectableExpression<Self>,
     Self: Clone,
 {
     type FromClause = Self;
     type DefaultSelection = Left::Output;
 
-    fn from_clause(&self) -> Self::FromClause {
+    fn from_clause(&'r self) -> Self::FromClause {
         self.clone()
     }
 
-    fn default_selection(&self) -> Self::DefaultSelection {
+    fn default_selection(&'r self) -> Self::DefaultSelection {
         self.left.append_selection(self.right.default_selection())
     }
 }
 
-impl<Left, Right> QuerySource for Join<Left, Right, LeftOuter>
+impl<'r, Left, Right> QuerySource<'r> for Join<Left, Right, LeftOuter>
 where
-    Left: QuerySource + AppendSelection<Nullable<Right::DefaultSelection>>,
-    Right: QuerySource,
+    Left: QuerySource<'r> + AppendSelection<Nullable<Right::DefaultSelection>>,
+    Right: QuerySource<'r>,
     Left::Output: SelectableExpression<Self>,
     Self: Clone,
 {
     type FromClause = Self;
     type DefaultSelection = Left::Output;
 
-    fn from_clause(&self) -> Self::FromClause {
+    fn from_clause(&'r self) -> Self::FromClause {
         self.clone()
     }
 
-    fn default_selection(&self) -> Self::DefaultSelection {
+    fn default_selection(&'r self) -> Self::DefaultSelection {
         self.left
             .append_selection(self.right.default_selection().nullable())
     }
 }
 
-impl<Join, On> QuerySource for JoinOn<Join, On>
+impl<'r, Join, On> QuerySource<'r> for JoinOn<Join, On>
 where
-    Join: QuerySource,
-    On: AppearsOnTable<Join::FromClause> + Clone,
+    Join: QuerySource<'r>,
+    On: AppearsOnTable<Join::FromClause> + 'r,
     On::SqlType: BoolOrNullableBool,
     Join::DefaultSelection: SelectableExpression<Self>,
 {
-    type FromClause = Grouped<nodes::InfixNode<'static, Join::FromClause, On>>;
+    type FromClause = Grouped<nodes::InfixNode<'static, Join::FromClause, &'r On>>;
     type DefaultSelection = Join::DefaultSelection;
 
-    fn from_clause(&self) -> Self::FromClause {
+    fn from_clause(&'r self) -> Self::FromClause {
         Grouped(nodes::InfixNode::new(
             self.join.from_clause(),
-            self.on.clone(),
+            &self.on,
             " ON ",
         ))
     }
 
-    fn default_selection(&self) -> Self::DefaultSelection {
+    fn default_selection(&'r self) -> Self::DefaultSelection {
         self.join.default_selection()
     }
 }
@@ -108,10 +108,10 @@ where
 impl<Left, Right, Kind, DB> QueryFragment<DB> for Join<Left, Right, Kind>
 where
     DB: Backend,
-    Left: QuerySource,
-    Left::FromClause: QueryFragment<DB>,
-    Right: QuerySource,
-    Right::FromClause: QueryFragment<DB>,
+    Left: for<'r> QuerySource<'r>,
+    for<'r> <Left as QuerySource<'r>>::FromClause: QueryFragment<DB>,
+    Right: for<'r> QuerySource<'r>,
+    for<'r> <Right as QuerySource<'r>>::FromClause: QueryFragment<DB>,
     Kind: QueryFragment<DB>,
 {
     fn walk_ast(&self, mut out: AstPass<DB>) -> QueryResult<()> {
@@ -164,12 +164,13 @@ impl<T: Table, Selection> AppendSelection<Selection> for T {
     }
 }
 
-impl<Left, Mid, Selection, Kind> AppendSelection<Selection> for Join<Left, Mid, Kind>
+impl<Left, Mid, Selection, Kind, DefaultSelection> AppendSelection<Selection>
+    for Join<Left, Mid, Kind>
 where
-    Self: QuerySource,
-    <Self as QuerySource>::DefaultSelection: TupleAppend<Selection>,
+    Self: for<'r> QuerySource<'r, DefaultSelection = DefaultSelection>,
+    DefaultSelection: TupleAppend<Selection>,
 {
-    type Output = <<Self as QuerySource>::DefaultSelection as TupleAppend<Selection>>::Output;
+    type Output = <DefaultSelection as TupleAppend<Selection>>::Output;
 
     fn append_selection(&self, selection: Selection) -> Self::Output {
         self.default_selection().tuple_append(selection)

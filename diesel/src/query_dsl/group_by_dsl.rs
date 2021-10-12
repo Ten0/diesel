@@ -3,7 +3,7 @@ use crate::expression::Expression;
 use crate::expression::TypedExpressionType;
 use crate::expression::ValidGrouping;
 use crate::query_builder::{AsQuery, SelectStatement};
-use crate::query_source::Table;
+use crate::query_source::{QuerySource, Table};
 
 /// The `group_by` method
 ///
@@ -24,7 +24,8 @@ impl<T, Expr> GroupByDsl<Expr> for T
 where
     Expr: Expression,
     T: Table + AsQuery<Query = SelectStatement<T>>,
-    T::DefaultSelection: Expression<SqlType = T::SqlType> + ValidGrouping<()>,
+    for<'r> <T as QuerySource<'r>>::DefaultSelection:
+        Expression<SqlType = T::SqlType> + ValidGrouping<()>,
     T::SqlType: TypedExpressionType,
 {
     type Output = dsl::GroupBy<SelectStatement<T>, Expr>;

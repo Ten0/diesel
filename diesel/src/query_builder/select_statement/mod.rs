@@ -121,22 +121,24 @@ impl<F> SelectStatement<F> {
     }
 }
 
-impl<F, S, D, W, O, LOf, G, H, LC> Query for SelectStatement<F, S, D, W, O, LOf, G, H, LC>
+impl<F, S, D, W, O, LOf, G, H, LC, SelectClauseSqlType> Query
+    for SelectStatement<F, S, D, W, O, LOf, G, H, LC>
 where
     G: ValidGroupByClause,
-    S: SelectClauseExpression<F>,
-    S::Selection: ValidGrouping<G::Expressions>,
+    S: for<'r> SelectClauseExpression<'r, F, SelectClauseSqlType = SelectClauseSqlType>,
+    for<'r> <S as SelectClauseExpression<'r, F>>::Selection: ValidGrouping<G::Expressions>,
     W: ValidWhereClause<F>,
 {
-    type SqlType = S::SelectClauseSqlType;
+    type SqlType = SelectClauseSqlType;
 }
 
-impl<F, S, D, W, O, LOf, G, H, LC> SelectQuery for SelectStatement<F, S, D, W, O, LOf, G, H, LC>
+impl<F, S, D, W, O, LOf, G, H, LC, SelectClauseSqlType> SelectQuery
+    for SelectStatement<F, S, D, W, O, LOf, G, H, LC>
 where
-    S: SelectClauseExpression<F>,
+    S: for<'r> SelectClauseExpression<'r, F, SelectClauseSqlType = SelectClauseSqlType>,
     O: ValidOrderingForDistinct<D>,
 {
-    type SqlType = S::SelectClauseSqlType;
+    type SqlType = SelectClauseSqlType;
 }
 
 impl<F, S, D, W, O, LOf, G, H, LC, DB> QueryFragment<DB>
@@ -144,8 +146,8 @@ impl<F, S, D, W, O, LOf, G, H, LC, DB> QueryFragment<DB>
 where
     DB: Backend,
     S: SelectClauseQueryFragment<F, DB>,
-    F: QuerySource,
-    F::FromClause: QueryFragment<DB>,
+    F: for<'r> QuerySource<'r>,
+    for<'r> <F as QuerySource<'r>>::FromClause: QueryFragment<DB>,
     D: QueryFragment<DB>,
     W: QueryFragment<DB>,
     O: QueryFragment<DB>,
@@ -216,19 +218,19 @@ where
     type Count = From::Count;
 }
 
-impl<From> QuerySource for SelectStatement<From>
+impl<'r, From> QuerySource<'r> for SelectStatement<From>
 where
-    From: QuerySource,
+    From: QuerySource<'r>,
     From::DefaultSelection: SelectableExpression<Self>,
 {
     type FromClause = From::FromClause;
     type DefaultSelection = From::DefaultSelection;
 
-    fn from_clause(&self) -> Self::FromClause {
+    fn from_clause(&'r self) -> Self::FromClause {
         self.from.from_clause()
     }
 
-    fn default_selection(&self) -> Self::DefaultSelection {
+    fn default_selection(&'r self) -> Self::DefaultSelection {
         self.from.default_selection()
     }
 }

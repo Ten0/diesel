@@ -360,13 +360,14 @@ impl<F, S, D, W, O, LOf, G, H, LC, LM, Modifier> ModifyLockDsl<Modifier>
     }
 }
 
-impl<'a, F, S, D, W, O, LOf, G, H, DB> BoxedDsl<'a, DB>
+impl<'a, F, S, D, W, O, LOf, G, H, DB, ST> BoxedDsl<'a, DB>
     for SelectStatement<F, S, D, W, O, LOf, G, H>
 where
     Self: AsQuery,
     DB: Backend,
-    S: IntoBoxedSelectClause<'a, DB, F> + SelectClauseExpression<F>,
-    S::Selection: ValidGrouping<G::Expressions>,
+    S: for<'r> IntoBoxedSelectClause<'a, 'r, DB, F, SqlType = ST>
+        + for<'r> SelectClauseExpression<'r, F>,
+    for<'r> <S as SelectClauseExpression<'r, F>>::Selection: ValidGrouping<G::Expressions>,
     D: QueryFragment<DB> + Send + 'a,
     W: Into<BoxedWhereClause<'a, DB>>,
     O: Into<Option<Box<dyn QueryFragment<DB> + Send + 'a>>>,
@@ -374,7 +375,7 @@ where
     G: ValidGroupByClause + QueryFragment<DB> + Send + 'a,
     H: QueryFragment<DB> + Send + 'a,
 {
-    type Output = BoxedSelectStatement<'a, S::SqlType, F, DB, G::Expressions>;
+    type Output = BoxedSelectStatement<'a, ST, F, DB, G::Expressions>;
 
     fn internal_into_boxed(self) -> Self::Output {
         BoxedSelectStatement::new(
@@ -489,13 +490,12 @@ impl<'a, F, S, D, W, O, LOf, G, H> SelectNullableDsl
     }
 }
 
-impl<'a, F, D, W, O, LOf, G, H> SelectNullableDsl
+impl<'a, F, D, W, O, LOf, G, H, DefaultSelection> SelectNullableDsl
     for SelectStatement<F, DefaultSelectClause, D, W, O, LOf, G, H>
 where
-    F: QuerySource,
+    F: for<'r> QuerySource<'r, DefaultSelection = DefaultSelection>,
 {
-    type Output =
-        SelectStatement<F, SelectClause<Nullable<F::DefaultSelection>>, D, W, O, LOf, G, H>;
+    type Output = SelectStatement<F, SelectClause<Nullable<DefaultSelection>>, D, W, O, LOf, G, H>;
 
     fn nullable(self) -> Self::Output {
         SelectStatement::new(

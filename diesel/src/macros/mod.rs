@@ -48,7 +48,7 @@ macro_rules! __diesel_column {
 
         impl<DB> $crate::query_builder::QueryFragment<DB> for $column_name where
             DB: $crate::backend::Backend,
-            <$table as $crate::QuerySource>::FromClause: $crate::query_builder::QueryFragment<DB>,
+            for<'r> <$table as $crate::QuerySource<'r>>::FromClause: $crate::query_builder::QueryFragment<DB>,
         {
             #[allow(non_snake_case)]
             fn walk_ast(&self, mut __out: $crate::query_builder::AstPass<DB>) -> $crate::result::QueryResult<()> {
@@ -835,7 +835,7 @@ macro_rules! __diesel_table_impl {
                 }
 
                 impl<DB: $crate::backend::Backend> $crate::query_builder::QueryFragment<DB> for star where
-                    <table as $crate::QuerySource>::FromClause: $crate::query_builder::QueryFragment<DB>,
+                    for<'r> <table as $crate::QuerySource<'r>>::FromClause: $crate::query_builder::QueryFragment<DB>,
                 {
                     #[allow(non_snake_case)]
                     fn walk_ast(&self, mut __out: $crate::query_builder::AstPass<DB>) -> $crate::result::QueryResult<()> {
@@ -916,15 +916,15 @@ macro_rules! __diesel_valid_grouping_for_table_columns {
 #[doc(hidden)]
 macro_rules! __diesel_table_query_source_impl {
     ($table_struct:ident, public, $table_name:expr) => {
-        impl $crate::QuerySource for $table_struct {
+        impl<'r> $crate::QuerySource<'r> for $table_struct {
             type FromClause = $crate::query_builder::nodes::Identifier<'static>;
             type DefaultSelection = <Self as $crate::Table>::AllColumns;
 
-            fn from_clause(&self) -> Self::FromClause {
+            fn from_clause(&'r self) -> Self::FromClause {
                 $crate::query_builder::nodes::Identifier($table_name)
             }
 
-            fn default_selection(&self) -> Self::DefaultSelection {
+            fn default_selection(&'r self) -> Self::DefaultSelection {
                 use $crate::Table;
                 Self::all_columns()
             }

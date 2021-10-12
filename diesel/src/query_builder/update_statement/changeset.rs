@@ -12,7 +12,7 @@ use crate::result::QueryResult;
 /// This trait can be [derived](derive@AsChangeset)
 pub trait AsChangeset {
     /// The table which `Self::Changeset` will be updating
-    type Target: QuerySource;
+    type Target: for<'r> QuerySource<'r>;
 
     /// The update statement this type represents
     type Changeset;

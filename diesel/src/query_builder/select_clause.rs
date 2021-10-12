@@ -12,14 +12,16 @@ pub struct SelectClause<T>(pub T);
 ///
 /// The difference to the normal `Expression` trait is the query source (`QS`)
 /// generic type parameter. This allows to access the query source in generic code.
-pub trait SelectClauseExpression<QS> {
+///
+/// The lifetime genericity is here as a workaround to GATs.
+pub trait SelectClauseExpression<'r, QS> {
     /// The expression represented by the given select clause
     type Selection: SelectableExpression<QS>;
     /// SQL type of the select clause
     type SelectClauseSqlType;
 }
 
-impl<T, QS> SelectClauseExpression<QS> for SelectClause<T>
+impl<T, QS> SelectClauseExpression<'_, QS> for SelectClause<T>
 where
     T: SelectableExpression<QS>,
 {
@@ -27,9 +29,9 @@ where
     type SelectClauseSqlType = T::SqlType;
 }
 
-impl<QS> SelectClauseExpression<QS> for DefaultSelectClause
+impl<'r, QS> SelectClauseExpression<'r, QS> for DefaultSelectClause
 where
-    QS: QuerySource,
+    QS: QuerySource<'r>,
 {
     type Selection = QS::DefaultSelection;
     type SelectClauseSqlType = <QS::DefaultSelection as Expression>::SqlType;
@@ -62,8 +64,8 @@ where
 impl<QS, DB> SelectClauseQueryFragment<QS, DB> for DefaultSelectClause
 where
     DB: Backend,
-    QS: QuerySource,
-    QS::DefaultSelection: QueryFragment<DB>,
+    QS: for<'r> QuerySource<'r>,
+    for<'r> <QS as QuerySource<'r>>::DefaultSelection: QueryFragment<DB>,
 {
     fn walk_ast(&self, source: &QS, pass: AstPass<DB>) -> QueryResult<()> {
         source.default_selection().walk_ast(pass)
@@ -75,15 +77,15 @@ where
 ///
 /// You normally don't need this trait, at least as long as you
 /// don't implement your own select clause representation
-pub trait IntoBoxedSelectClause<'a, DB, QS> {
+pub trait IntoBoxedSelectClause<'a, 'r, DB, QS> {
     /// The sql type of the select clause
     type SqlType;
 
     /// Convert the select clause into a the boxed representation
-    fn into_boxed(self, source: &QS) -> Box<dyn QueryFragment<DB> + Send + 'a>;
+    fn into_boxed(self, source: &'r QS) -> Box<dyn QueryFragment<DB> + Send + 'a>;
 }
 
-impl<'a, DB, T, QS> IntoBoxedSelectClause<'a, DB, QS> for SelectClause<T>
+impl<'a, DB, T, QS> IntoBoxedSelectClause<'a, '_, DB, QS> for SelectClause<T>
 where
     T: QueryFragment<DB> + SelectableExpression<QS> + Send + 'a,
     DB: Backend,
@@ -95,15 +97,15 @@ where
     }
 }
 
-impl<'a, DB, QS> IntoBoxedSelectClause<'a, DB, QS> for DefaultSelectClause
+impl<'a, 'r, DB, QS, DefaultSelection> IntoBoxedSelectClause<'a, 'r, DB, QS> for DefaultSelectClause
 where
-    QS: QuerySource,
-    QS::DefaultSelection: QueryFragment<DB> + Send + 'a,
+    QS: QuerySource<'r, DefaultSelection = DefaultSelection>,
+    DefaultSelection: Expression + QueryFragment<DB> + Send + 'a,
     DB: Backend,
 {
-    type SqlType = <QS::DefaultSelection as Expression>::SqlType;
+    type SqlType = <DefaultSelection as Expression>::SqlType;
 
-    fn into_boxed(self, source: &QS) -> Box<dyn QueryFragment<DB> + Send + 'a> {
+    fn into_boxed(self, source: &'r QS) -> Box<dyn QueryFragment<DB> + Send + 'a> {
         Box::new(source.default_selection())
     }
 }

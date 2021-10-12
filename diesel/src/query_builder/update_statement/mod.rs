@@ -14,7 +14,7 @@ use crate::query_builder::where_clause::*;
 use crate::query_builder::*;
 use crate::query_dsl::methods::{BoxedDsl, FilterDsl};
 use crate::query_dsl::RunQueryDsl;
-use crate::query_source::Table;
+use crate::query_source::{QuerySource, Table};
 use crate::result::Error::QueryBuilderError;
 use crate::result::QueryResult;
 
@@ -191,7 +191,7 @@ impl<T, U, V, Ret, DB> QueryFragment<DB> for UpdateStatement<T, U, V, Ret>
 where
     DB: Backend,
     T: Table,
-    T::FromClause: QueryFragment<DB>,
+    for<'r> <T as QuerySource<'r>>::FromClause: QueryFragment<DB>,
     U: QueryFragment<DB>,
     V: QueryFragment<DB>,
     Ret: QueryFragment<DB>,

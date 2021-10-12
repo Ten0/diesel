@@ -209,7 +209,7 @@ macro_rules! tuple_impls {
 
             impl<Target, $($T,)+> AsChangeset for ($($T,)+) where
                 $($T: AsChangeset<Target=Target>,)+
-                Target: QuerySource,
+                Target: for<'r> QuerySource<'r>,
             {
                 type Target = Target;
                 type Changeset = ($($T::Changeset,)+);

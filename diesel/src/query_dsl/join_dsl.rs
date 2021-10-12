@@ -77,4 +77,4 @@ pub trait JoinOnDsl: Sized {
     }
 }
 
-impl<T: QuerySource> JoinOnDsl for T {}
+impl<T: for<'r> QuerySource<'r>> JoinOnDsl for T {}

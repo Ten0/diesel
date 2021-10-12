@@ -51,8 +51,8 @@ impl<'a, ST, QS, DB, GB> BoxedSelectStatement<'a, ST, QS, DB, GB> {
     where
         DB: Backend,
         G: ValidGroupByClause<Expressions = GB> + QueryFragment<DB> + Send + 'a,
-        S: IntoBoxedSelectClause<'a, DB, QS> + SelectClauseExpression<QS>,
-        S::Selection: ValidGrouping<GB>,
+        S: for<'r> IntoBoxedSelectClause<'a, 'r, DB, QS> + for<'r> SelectClauseExpression<'r, QS>,
+        for<'r> <S as SelectClauseExpression<'r, QS>>::Selection: ValidGrouping<GB>,
     {
         BoxedSelectStatement {
             select: select.into_boxed(&from),
@@ -68,15 +68,15 @@ impl<'a, ST, QS, DB, GB> BoxedSelectStatement<'a, ST, QS, DB, GB> {
     }
 }
 
-impl<'a, ST, QS, DB, GB> BoxedSelectStatement<'a, ST, QS, DB, GB> {
+impl<'a, 'r, ST, QS, DB, GB> BoxedSelectStatement<'a, ST, QS, DB, GB> {
     pub(crate) fn build_query(
-        &self,
+        &'r self,
         mut out: AstPass<DB>,
         where_clause_handler: impl Fn(&BoxedWhereClause<'a, DB>, AstPass<DB>) -> QueryResult<()>,
     ) -> QueryResult<()>
     where
         DB: Backend,
-        QS: QuerySource,
+        QS: QuerySource<'r>,
         QS::FromClause: QueryFragment<DB>,
         BoxedLimitOffsetClause<'a, DB>: QueryFragment<DB>,
     {
@@ -120,8 +120,8 @@ impl<'a, ST, QS, QS2, DB, GB> ValidSubselect<QS2> for BoxedSelectStatement<'a, S
 impl<'a, ST, QS, DB, GB> QueryFragment<DB> for BoxedSelectStatement<'a, ST, QS, DB, GB>
 where
     DB: Backend,
-    QS: QuerySource,
-    QS::FromClause: QueryFragment<DB>,
+    QS: for<'r> QuerySource<'r>,
+    for<'r> <QS as QuerySource<'r>>::FromClause: QueryFragment<DB>,
     BoxedLimitOffsetClause<'a, DB>: QueryFragment<DB>,
 {
     fn walk_ast(&self, out: AstPass<DB>) -> QueryResult<()> {

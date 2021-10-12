@@ -20,7 +20,7 @@ use crate::insertable::*;
 use crate::mysql::Mysql;
 use crate::query_builder::*;
 use crate::query_dsl::RunQueryDsl;
-use crate::query_source::{Column, Table};
+use crate::query_source::{Column, QuerySource, Table};
 use crate::result::QueryResult;
 #[cfg(feature = "sqlite")]
 use crate::sqlite::Sqlite;
@@ -178,7 +178,7 @@ impl<T, U, Op, Ret, DB> QueryFragment<DB> for InsertStatement<T, U, Op, Ret>
 where
     DB: Backend,
     T: Table,
-    T::FromClause: QueryFragment<DB>,
+    for<'r> <T as QuerySource<'r>>::FromClause: QueryFragment<DB>,
     U: QueryFragment<DB> + CanInsertInSingleQuery<DB>,
     Op: QueryFragment<DB>,
     Ret: QueryFragment<DB>,

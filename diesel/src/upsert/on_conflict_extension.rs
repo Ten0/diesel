@@ -380,7 +380,7 @@ impl<T, U, Op, Ret, Target> IncompleteDoUpdate<InsertStatement<T, U, Op, Ret>, T
         changes: Changes,
     ) -> InsertStatement<T, OnConflictValues<U, Target, DoUpdate<Changes::Changeset>>, Op, Ret>
     where
-        T: QuerySource,
+        T: for<'r> QuerySource<'r>,
         Changes: AsChangeset<Target = T>,
     {
         let target = self.target;
