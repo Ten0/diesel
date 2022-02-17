@@ -185,5 +185,59 @@ fn column_alias() {
     let names = query.load::<String>(connection).unwrap();
 
     assert_eq!(names, vec![String::from("Sean!"), String::from("Tess!")]);
-    panic!("That's here to inspect the sql");
+}
+
+#[test]
+fn column_alias_broken_but_compiles() {
+    // TODO this should fail to compile
+    use diesel::query_source::aliasing::*;
+
+    let connection = &mut connection_with_sean_and_tess_in_users_table();
+
+    table! {
+        users {
+            id -> Integer,
+            name -> Text,
+        }
+    }
+
+    struct NameAlias {
+        expression: diesel::dsl::Concat<users::name, String>,
+    }
+
+    impl AliasSource for NameAlias {
+        const NAME: &'static str = "name_alias";
+
+        type Target = diesel::dsl::Concat<users::name, String>;
+
+        fn target(&self) -> &Self::Target {
+            &self.expression
+        }
+    }
+
+    struct NameAlias2 {
+        expression: diesel::query_source::Alias<NameAlias>,
+    }
+
+    impl AliasSource for NameAlias2 {
+        const NAME: &'static str = "name_alias_2";
+
+        type Target = diesel::query_source::Alias<NameAlias>;
+
+        fn target(&self) -> &Self::Target {
+            &self.expression
+        }
+    }
+
+    let name_alias2 = Alias::new(NameAlias2 {
+        expression: Alias::new(NameAlias {
+            expression: users::name.concat(String::from("!")),
+        }),
+    });
+    let query = users::table.select(name_alias2);
+    println!("{}", diesel::debug_query(&query));
+
+    let names = query.load::<String>(connection).unwrap();
+
+    assert_eq!(names, vec![String::from("Sean!"), String::from("Tess!")]);
 }
