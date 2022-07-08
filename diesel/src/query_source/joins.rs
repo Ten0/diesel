@@ -47,18 +47,18 @@ impl<Left, Right> QuerySource for Join<Left, Right, Inner>
 where
     Left: QuerySource + AppendSelection<Right::DefaultSelection>,
     Right: QuerySource,
-    Left::Output: SelectableExpression<Self>,
+    <Left as AppendSelection<Right::DefaultSelection>>::Output: SelectableExpression<Self>,
     Self: Clone,
 {
     type FromClause = Self;
-    type DefaultSelection = Left::Output;
+    type DefaultSelection = crate::query_builder::SelectClauseNotSet;
 
     fn from_clause(&self) -> Self::FromClause {
         self.clone()
     }
 
     fn default_selection(&self) -> Self::DefaultSelection {
-        self.left.append_selection(self.right.default_selection())
+        crate::query_builder::SelectClauseNotSet
     }
 }
 
@@ -66,19 +66,19 @@ impl<Left, Right> QuerySource for Join<Left, Right, LeftOuter>
 where
     Left: QuerySource + AppendSelection<Nullable<Right::DefaultSelection>>,
     Right: QuerySource,
-    Left::Output: SelectableExpression<Self>,
+    <Left as AppendSelection<Nullable<Right::DefaultSelection>>>::Output:
+        SelectableExpression<Self>,
     Self: Clone,
 {
     type FromClause = Self;
-    type DefaultSelection = Left::Output;
+    type DefaultSelection = crate::query_builder::SelectClauseNotSet;
 
     fn from_clause(&self) -> Self::FromClause {
         self.clone()
     }
 
     fn default_selection(&self) -> Self::DefaultSelection {
-        self.left
-            .append_selection(self.right.default_selection().nullable())
+        crate::query_builder::SelectClauseNotSet
     }
 }
 

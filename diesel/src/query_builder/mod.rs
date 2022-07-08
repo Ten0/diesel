@@ -29,6 +29,7 @@ pub(crate) mod offset_clause;
 pub(crate) mod order_clause;
 mod returning_clause;
 pub(crate) mod select_clause;
+mod select_clause_not_set;
 pub(crate) mod select_statement;
 mod sql_query;
 mod update_statement;
@@ -67,6 +68,8 @@ pub use self::offset_clause::{NoOffsetClause, OffsetClause};
 
 #[doc(hidden)]
 pub use self::returning_clause::ReturningClause;
+
+pub use select_clause_not_set::SelectClauseNotSet;
 
 pub(crate) use self::insert_statement::ColumnList;
 
