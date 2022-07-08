@@ -117,10 +117,11 @@ impl<'a, 'b> SqliteValue<'a, 'b> {
             ffi::SQLITE_FLOAT => Some(SqliteType::Double),
             ffi::SQLITE_BLOB => Some(SqliteType::Binary),
             ffi::SQLITE_NULL => None,
-            _ => unreachable!(
-                "Sqlite's documentation state that this case ({}) is not reachable. \
+            other => unreachable!(
+                "Sqlite's documentation states that this case ({}) is not reachable. \
                  If you ever see this error message please open an issue at \
-                 https://github.com/diesel-rs/diesel."
+                 https://github.com/diesel-rs/diesel.",
+                other
             ),
         }
     }
