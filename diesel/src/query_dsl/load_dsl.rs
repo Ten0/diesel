@@ -43,17 +43,18 @@ pub type LoadRet<'conn, 'query, Q, C, U, B = DefaultLoadingMode> =
 impl<'conn, 'query, Conn, T, U, DB, B> LoadQueryGatWorkaround<'conn, 'query, Conn, U, B> for T
 where
     Conn: Connection<Backend = DB> + ConnectionGatWorkaround<'conn, 'query, DB, B>,
-    T: AsQuery + RunQueryDsl<Conn>,
-    T::Query: QueryFragment<DB> + QueryId,
-    T::SqlType: CompatibleType<U, DB>,
-    DB: Backend + QueryMetadata<T::SqlType> + 'static,
-    U: FromSqlRow<<T::SqlType as CompatibleType<U, DB>>::SqlType, DB> + 'static,
-    <T::SqlType as CompatibleType<U, DB>>::SqlType: 'static,
+    T: RunQueryDsl<Conn>,
+    //T: AsQuery + RunQueryDsl<Conn>,
+    //T::Query: QueryFragment<DB> + QueryId,
+    //T::SqlType: CompatibleType<U, DB>,
+    DB: Backend /*+ QueryMetadata<T::SqlType>*/ + 'static,
+    //U: FromSqlRow<<T::SqlType as CompatibleType<U, DB>>::SqlType, DB> + 'static,
+    //<T::SqlType as CompatibleType<U, DB>>::SqlType: 'static,
 {
     type Ret = LoadIter<
         U,
         <Conn as ConnectionGatWorkaround<'conn, 'query, DB, B>>::Cursor,
-        <T::SqlType as CompatibleType<U, DB>>::SqlType,
+        crate::sql_types::Bool,
         DB,
     >;
 }
@@ -61,21 +62,23 @@ where
 impl<'query, Conn, T, U, DB, B> LoadQuery<'query, Conn, U, B> for T
 where
     Conn: Connection<Backend = DB> + LoadConnection<B>,
-    T: AsQuery + RunQueryDsl<Conn>,
-    T::Query: QueryFragment<DB> + QueryId + 'query,
-    T::SqlType: CompatibleType<U, DB>,
-    DB: Backend + QueryMetadata<T::SqlType> + 'static,
-    U: FromSqlRow<<T::SqlType as CompatibleType<U, DB>>::SqlType, DB> + 'static,
-    <T::SqlType as CompatibleType<U, DB>>::SqlType: 'static,
+    T: RunQueryDsl<Conn>,
+    //T: AsQuery + RunQueryDsl<Conn>,
+    //T::Query: QueryFragment<DB> + QueryId + 'query,
+    //T::SqlType: CompatibleType<U, DB>,
+    DB: Backend /*+ QueryMetadata<T::SqlType>*/ + 'static,
+    //U: FromSqlRow<<T::SqlType as CompatibleType<U, DB>>::SqlType, DB> + 'static,
+    //<T::SqlType as CompatibleType<U, DB>>::SqlType: 'static,
 {
     fn internal_load<'conn>(
         self,
         conn: &'conn mut Conn,
     ) -> QueryResult<<Self as LoadQueryGatWorkaround<'conn, 'query, Conn, U, B>>::Ret> {
-        Ok(LoadIter {
+        todo!()
+        /*Ok(LoadIter {
             cursor: conn.load(self.as_query())?,
             _marker: Default::default(),
-        })
+        })*/
     }
 }
 
@@ -140,15 +143,16 @@ mod private {
         DB: Backend,
         C: Iterator<Item = QueryResult<R>>,
         R: crate::row::Row<'a, DB>,
-        U: FromSqlRow<ST, DB>,
+        //U: FromSqlRow<ST, DB>,
     {
         pub(super) fn map_row(row: Option<QueryResult<R>>) -> Option<QueryResult<U>> {
-            match row? {
+            todo!();
+            /*match row? {
                 Ok(row) => Some(
                     U::build_from_row(&row).map_err(crate::result::Error::DeserializationError),
                 ),
                 Err(e) => Some(Err(e)),
-            }
+            }*/
         }
     }
 
@@ -157,7 +161,7 @@ mod private {
         DB: Backend,
         C: Iterator<Item = QueryResult<R>>,
         R: crate::row::Row<'a, DB>,
-        U: FromSqlRow<ST, DB>,
+        //U: FromSqlRow<ST, DB>,
     {
         type Item = QueryResult<U>;
 

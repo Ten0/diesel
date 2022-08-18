@@ -434,12 +434,11 @@ pub trait SelectableHelper<DB: Backend>: Selectable<DB> + Sized {
     }
 }
 
-impl<T, DB> SelectableHelper<DB> for T
+impl<T> SelectableHelper<crate::pg::Pg> for T
 where
-    T: Selectable<DB>,
-    DB: Backend,
+    T: Selectable<crate::pg::Pg>,
 {
-    fn as_select() -> AsSelect<Self, DB> {
+    fn as_select() -> AsSelect<Self, crate::pg::Pg> {
         select_by::SelectBy::new()
     }
 }

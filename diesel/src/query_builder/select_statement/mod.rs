@@ -59,7 +59,7 @@ use crate::result::QueryResult;
         locking
     )
 )]
-#[derive(Debug, Clone, Copy, QueryId)]
+#[derive(Debug, Clone, Copy)]
 #[must_use = "Queries are only executed when calling `load`, `get_result` or similar."]
 pub struct SelectStatement<
     From,
@@ -90,6 +90,13 @@ pub struct SelectStatement<
     pub(crate) having: Having,
     /// The locking clauise of the query
     pub(crate) locking: Locking,
+}
+
+impl<From, Select, Distinct, Where, Order, LimitOffset, GroupBy, Having, Locking> QueryId
+    for SelectStatement<From, Select, Distinct, Where, Order, LimitOffset, GroupBy, Having, Locking>
+{
+    type QueryId = ();
+    const HAS_STATIC_QUERY_ID: bool = false;
 }
 
 impl<F, S, D, W, O, LOf, G, H, LC> SelectStatement<F, S, D, W, O, LOf, G, H, LC> {
@@ -177,28 +184,29 @@ where
     DB: Backend<
         SelectStatementSyntax = sql_dialect::select_statement_syntax::AnsiSqlSelectStatement,
     >,
-    S: QueryFragment<DB>,
-    F: QueryFragment<DB>,
-    D: QueryFragment<DB>,
-    W: QueryFragment<DB>,
-    O: QueryFragment<DB>,
-    LOf: QueryFragment<DB>,
-    G: QueryFragment<DB>,
-    H: QueryFragment<DB>,
-    LC: QueryFragment<DB>,
+    //S: QueryFragment<DB>,
+    //F: QueryFragment<DB>,
+    //D: QueryFragment<DB>,
+    //W: QueryFragment<DB>,
+    //O: QueryFragment<DB>,
+    //LOf: QueryFragment<DB>,
+    //G: QueryFragment<DB>,
+    //H: QueryFragment<DB>,
+    //LC: QueryFragment<DB>,
 {
     fn walk_ast<'b>(&'b self, mut out: AstPass<'_, 'b, DB>) -> QueryResult<()> {
         out.push_sql("SELECT ");
-        self.distinct.walk_ast(out.reborrow())?;
-        self.select.walk_ast(out.reborrow())?;
-        self.from.walk_ast(out.reborrow())?;
-        self.where_clause.walk_ast(out.reborrow())?;
-        self.group_by.walk_ast(out.reborrow())?;
-        self.having.walk_ast(out.reborrow())?;
-        self.order.walk_ast(out.reborrow())?;
-        self.limit_offset.walk_ast(out.reborrow())?;
-        self.locking.walk_ast(out.reborrow())?;
-        Ok(())
+        todo!();
+        //self.distinct.walk_ast(out.reborrow())?;
+        //self.select.walk_ast(out.reborrow())?;
+        //self.from.walk_ast(out.reborrow())?;
+        //self.where_clause.walk_ast(out.reborrow())?;
+        //self.group_by.walk_ast(out.reborrow())?;
+        //self.having.walk_ast(out.reborrow())?;
+        //self.order.walk_ast(out.reborrow())?;
+        //self.limit_offset.walk_ast(out.reborrow())?;
+        //self.locking.walk_ast(out.reborrow())?;
+        //Ok(())
     }
 }
 

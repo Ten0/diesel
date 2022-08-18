@@ -191,13 +191,13 @@ macro_rules! tuple_impls {
             }
 
             impl<$($T,)+ QS> SelectableExpression<QS> for ($($T,)+) where
-                $($T: SelectableExpression<QS>,)+
+                //$($T: SelectableExpression<QS>,)+
                 ($($T,)+): AppearsOnTable<QS>,
             {
             }
 
             impl<$($T,)+ QS> AppearsOnTable<QS> for ($($T,)+) where
-                $($T: AppearsOnTable<QS>,)+
+                //$($T: AppearsOnTable<QS>,)+
                 ($($T,)+): Expression,
             {
             }
