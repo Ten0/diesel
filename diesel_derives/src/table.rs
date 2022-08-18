@@ -189,14 +189,14 @@ fn expand(input: TableDecl, kind: QuerySourceMacroKind) -> TokenStream {
         QuerySourceMacroKind::Table => quote::quote! {
             impl diesel::Table for table {
                 type PrimaryKey = #primary_key;
-                type AllColumns = (#(#column_names,)*);
+                type AllColumns = self::diesel::query_builder::SelectClauseNotSet;
 
                 fn primary_key(&self) -> Self::PrimaryKey {
                     #primary_key
                 }
 
                 fn all_columns() -> Self::AllColumns {
-                    (#(#column_names,)*)
+                    all_columns
                 }
             }
 
@@ -336,13 +336,6 @@ fn expand(input: TableDecl, kind: QuerySourceMacroKind) -> TokenStream {
         #(#meta)*
         #[allow(unused_imports, dead_code, unreachable_pub, unused_qualifications)]
         pub mod #table_name {
-            const _: () = {
-                assert!(
-                    #column_count <= diesel::internal::table_macro::MAX_COLUMN_COUNT,
-                    #too_many_columns_error_message
-                );
-            };
-
             use ::diesel;
             pub use self::columns::*;
             #(#imports)*
@@ -357,7 +350,7 @@ fn expand(input: TableDecl, kind: QuerySourceMacroKind) -> TokenStream {
 
             #[allow(non_upper_case_globals, dead_code)]
             #[doc = concat!("A tuple of all of the columns on this", #kind_name)]
-            pub const all_columns: (#(#column_names,)*) = (#(#column_names,)*);
+            pub const all_columns: self::diesel::query_builder::SelectClauseNotSet = self::diesel::query_builder::SelectClauseNotSet;
 
             #[allow(non_camel_case_types)]
             #[derive(Debug, Clone, Copy, diesel::query_builder::QueryId, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -378,7 +371,7 @@ fn expand(input: TableDecl, kind: QuerySourceMacroKind) -> TokenStream {
             }
 
             #[doc = concat!("The SQL type of all of the columns on this ", #kind_name)]
-            pub type SqlType = (#(#column_ty,)*);
+            pub type SqlType = self::diesel::expression::expression_types::NotSelectable;
 
             #[doc = concat!("Helper type for representing a boxed query from this ", #kind_name)]
             pub type BoxedQuery<'a, DB, ST = SqlType> = diesel::internal::table_macro::BoxedSelectStatement<'a, ST, diesel::internal::table_macro::FromClause<#query_source_ident>, DB>;
