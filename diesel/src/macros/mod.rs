@@ -698,8 +698,6 @@ macro_rules! __diesel_table_impl {
             $($column:tt)*
         },)+],
     ) => {
-        $crate::__diesel_check_column_count!{
-            inner = {
                 $crate::__diesel_table_impl! {
                     impl_table,
                     table = { $($table)*},
@@ -710,9 +708,6 @@ macro_rules! __diesel_table_impl {
                         $($column)*
                     },)+],
                 }
-            },
-            ($($column_name,)*)
-        }
     };
     (
         impl_table,
@@ -763,7 +758,8 @@ macro_rules! __diesel_table_impl {
 
             #[allow(non_upper_case_globals, dead_code)]
             /// A tuple of all of the columns on this table
-            pub const all_columns: ($($column_name,)+) = ($($column_name,)+);
+            pub const all_columns: $crate::query_builder::SelectClauseNotSet =
+                $crate::query_builder::SelectClauseNotSet;
 
             #[allow(non_camel_case_types)]
             #[derive(Debug, Clone, Copy, $crate::query_builder::QueryId)]
@@ -815,7 +811,7 @@ macro_rules! __diesel_table_impl {
             $crate::__diesel_table_generate_static_query_fragment_for_table!($schema, table, $sql_name);
 
             impl $crate::query_builder::AsQuery for table {
-                type SqlType = SqlType;
+                type SqlType = $crate::expression::expression_types::NotSelectable;
                 type Query = $crate::internal::table_macro::SelectStatement<$crate::internal::table_macro::FromClause<Self>>;
 
                 fn as_query(self) -> Self::Query {
@@ -825,14 +821,14 @@ macro_rules! __diesel_table_impl {
 
             impl $crate::Table for table {
                 type PrimaryKey = $primary_key;
-                type AllColumns = ($($column_name,)+);
+                type AllColumns = $crate::query_builder::SelectClauseNotSet;
 
                 fn primary_key(&self) -> Self::PrimaryKey {
                     $primary_key
                 }
 
                 fn all_columns() -> Self::AllColumns {
-                    ($($column_name,)+)
+                    $crate::query_builder::SelectClauseNotSet
                 }
             }
 
