@@ -104,9 +104,8 @@ where
 
 impl<Left, Right> QuerySource for Join<Left, Right, Inner>
 where
-    Left: QuerySource + AppendSelection<Right::DefaultSelection>,
+    Left: QuerySource,
     Right: QuerySource,
-    <Left as AppendSelection<Right::DefaultSelection>>::Output: SelectableExpression<Self>,
     Self: Clone,
 {
     type FromClause = Self;
@@ -123,10 +122,8 @@ where
 
 impl<Left, Right> QuerySource for Join<Left, Right, LeftOuter>
 where
-    Left: QuerySource + AppendSelection<Nullable<Right::DefaultSelection>>,
+    Left: QuerySource,
     Right: QuerySource,
-    <Left as AppendSelection<Nullable<Right::DefaultSelection>>>::Output:
-        SelectableExpression<Self>,
     Self: Clone,
 {
     type FromClause = Self;
