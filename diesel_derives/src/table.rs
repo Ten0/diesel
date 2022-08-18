@@ -6,7 +6,7 @@ use syn::Ident;
 const DEFAULT_PRIMARY_KEY_NAME: &str = "id";
 
 pub(crate) fn expand(input: TableDecl) -> TokenStream {
-    if input.column_defs.len() > super::diesel_for_each_tuple::MAX_TUPLE_SIZE as usize {
+    if false && input.column_defs.len() > super::diesel_for_each_tuple::MAX_TUPLE_SIZE as usize {
         let txt = if input.column_defs.len() > 128 {
             "you reached the end. \nhelp: diesel does not support tables with \
              more than 128 columns.\nhelp: consider using less columns."
@@ -229,7 +229,7 @@ pub(crate) fn expand(input: TableDecl) -> TokenStream {
 
             #[allow(non_upper_case_globals, dead_code)]
             /// A tuple of all of the columns on this table
-            pub const all_columns: (#(#column_names,)*) = (#(#column_names,)*);
+            pub const all_columns: self::diesel::query_builder::SelectClauseNotSet = self::diesel::query_builder::SelectClauseNotSet;
 
             #[allow(non_camel_case_types)]
             #[derive(Debug, Clone, Copy, diesel::query_builder::QueryId, Default)]
@@ -250,7 +250,7 @@ pub(crate) fn expand(input: TableDecl) -> TokenStream {
             }
 
             /// The SQL type of all of the columns on this table
-            pub type SqlType = (#(#column_ty,)*);
+            pub type SqlType = self::diesel::expression::expression_types::NotSelectable;
 
             /// Helper type for representing a boxed query from this table
             pub type BoxedQuery<'a, DB, ST = SqlType> = diesel::internal::table_macro::BoxedSelectStatement<'a, ST, diesel::internal::table_macro::FromClause<table>, DB>;
@@ -291,14 +291,14 @@ pub(crate) fn expand(input: TableDecl) -> TokenStream {
 
             impl diesel::Table for table {
                 type PrimaryKey = #primary_key;
-                type AllColumns = (#(#column_names,)*);
+                type AllColumns = self::diesel::query_builder::SelectClauseNotSet;
 
                 fn primary_key(&self) -> Self::PrimaryKey {
                     #primary_key
                 }
 
                 fn all_columns() -> Self::AllColumns {
-                    (#(#column_names,)*)
+                    all_columns
                 }
             }
 
