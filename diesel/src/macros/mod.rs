@@ -370,8 +370,8 @@ macro_rules! __diesel_column {
 /// ```
 
 #[allow(deprecated)]
-//#[cfg_attr(feature="huge-tables", deprecated="`huge-tables` is deprecated in favor of `64-column-tables`")]
-//#[cfg_attr(feature="large-tables", deprecated="`large-tables` is deprecated in favor of `32-column-tables`")]
+#[cfg_attr(feature="huge-tables", deprecated="`huge-tables` is deprecated in favor of `64-column-tables`")]
+#[cfg_attr(feature="large-tables", deprecated="`large-tables` is deprecated in favor of `32-column-tables`")]
 #[macro_export]
 macro_rules! table {
     ($($tokens:tt)*) => {
@@ -380,6 +380,7 @@ macro_rules! table {
             imports = [],
             meta = [],
             sql_name = unknown,
+            all_columns_enabled = false,
             name = unknown,
             schema = public,
             primary_key = id,
@@ -430,6 +431,25 @@ macro_rules! __diesel_parse_table {
         }
     };
 
+    // Found with_all_columns attribute, override whatever we had before
+    (
+        tokens = [#[with_all_columns] $($rest:tt)*],
+        imports = $imports:tt,
+        meta = $meta:tt,
+        sql_name = $sql_name:tt,
+        all_columns_enabled = $ignore:tt,
+        $($args:tt)*
+    ) => {
+        $crate::__diesel_parse_table! {
+            tokens = [$($rest)*],
+            imports = $imports,
+            meta = $meta,
+            sql_name = $sql_name,
+            all_columns_enabled = true,
+            $($args)*
+        }
+    };
+
     // Meta item other than sql_name, attach it to the table struct
     (
         tokens = [#$new_meta:tt $($rest:tt)*],
@@ -451,6 +471,7 @@ macro_rules! __diesel_parse_table {
         imports = $imports:tt,
         meta = $meta:tt,
         sql_name = $sql_name:tt,
+        all_columns_enabled = $all_columns_enabled:tt,
         name = $name:tt,
         schema = $ignore:tt,
         $($args:tt)*
@@ -460,6 +481,7 @@ macro_rules! __diesel_parse_table {
             imports = $imports,
             meta = $meta,
             sql_name = $sql_name,
+            all_columns_enabled = $all_columns_enabled,
             name = $name,
             schema = $schema,
             $($args)*
@@ -472,6 +494,7 @@ macro_rules! __diesel_parse_table {
         imports = $imports:tt,
         meta = $meta:tt,
         sql_name = $sql_name:tt,
+        all_columns_enabled = $all_columns_enabled:tt,
         name = $ignore:tt,
         $($args:tt)*
     ) => {
@@ -480,6 +503,7 @@ macro_rules! __diesel_parse_table {
             imports = $imports,
             meta = $meta,
             sql_name = $sql_name,
+            all_columns_enabled = $all_columns_enabled,
             name = $name,
             $($args)*
         }
@@ -491,6 +515,7 @@ macro_rules! __diesel_parse_table {
         imports = $imports:tt,
         meta = $meta:tt,
         sql_name = $sql_name:tt,
+        all_columns_enabled = $all_columns_enabled:tt,
         name = $name:tt,
         schema = $schema:tt,
         primary_key = $ignore:tt,
@@ -501,6 +526,7 @@ macro_rules! __diesel_parse_table {
             imports = $imports,
             meta = $meta,
             sql_name = $sql_name,
+            all_columns_enabled = $all_columns_enabled,
             name = $name,
             schema = $schema,
             primary_key = ($($pk),+),
@@ -527,6 +553,7 @@ macro_rules! __diesel_parse_table {
         imports = $imports:tt,
         meta = $meta:tt,
         sql_name = unknown,
+        all_columns_enabled = $all_columns_enabled:tt,
         name = $name:tt,
         $($args:tt)*
     ) => {
@@ -535,6 +562,7 @@ macro_rules! __diesel_parse_table {
             imports = $imports,
             meta = $meta,
             sql_name = stringify!($name),
+            all_columns_enabled = $all_columns_enabled,
             name = $name,
             $($args)*
         }
@@ -690,7 +718,13 @@ macro_rules! __diesel_parse_columns {
 #[doc(hidden)]
 macro_rules! __diesel_table_impl {
     (
-        table = { $($table: tt)* },
+        table = {
+            imports = $imports:tt,
+            meta = $meta:tt,
+            sql_name = $sql_name:expr,
+            all_columns_enabled = $all_columns_enabled:tt,
+            $($rest_of_table_args: tt)*
+        },
         columns = [$({
             name = $column_name:ident,
             sql_name = $column_sql_name:expr,
@@ -698,9 +732,16 @@ macro_rules! __diesel_table_impl {
             $($column:tt)*
         },)+],
     ) => {
+        $crate::__diesel_check_column_count!{
+            inner = {
                 $crate::__diesel_table_impl! {
                     impl_table,
-                    table = { $($table)*},
+                    table = {
+                        imports = $imports,
+                        meta = $meta,
+                        sql_name = $sql_name,
+                        $($rest_of_table_args)*
+                    },
                     columns = [$({
                         name = $column_name,
                         sql_name = $column_sql_name,
@@ -708,6 +749,10 @@ macro_rules! __diesel_table_impl {
                         $($column)*
                     },)+],
                 }
+            },
+            all_columns_enabled = $all_columns_enabled,
+            ($($column_name,)*)
+        }
     };
     (
         impl_table,
@@ -1550,12 +1595,15 @@ macro_rules! impl_column_check {
                 #[macro_export]
                 #[doc(hidden)]
                 macro_rules! __diesel_check_column_count_internal {
+                    (inner = {$d($d inner: tt)*}, all_columns_enabled = false, ($d($d names: ident,)*)) => {
+                        $d($d inner)*
+                    };
                     $(
-                    (inner = {$d($d inner: tt)*}, ($($d $T: ident,)*)) => {
+                    (inner = {$d($d inner: tt)*}, all_columns_enabled = true, ($($d $T: ident,)*)) => {
                         $d($d inner)*
                     };
                     )*
-                    (inner = {$d($d inner: tt)*}, ($d($d names: ident,)*)) => {
+                    (inner = {$d($d inner: tt)*}, all_columns_enabled = true, ($d($d names: ident,)*)) => {
                         $crate::__diesel_error_table_size!();
                     }
                 }

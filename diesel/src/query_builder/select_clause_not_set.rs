@@ -18,10 +18,12 @@ where
     DB: Backend,
 {
     fn walk_ast<'b>(&'b self, mut pass: AstPass<'_, 'b, DB>) -> QueryResult<()> {
-        // We should enforce setting a select clause if not provided
-        // but that would require updating a lot of trait bounds, so for this
-        // prototype we'll just make it a valid query and prevent from loading it into
-        // anything
+        // This is an acceptable serialization because it will not allow selecting into
+        // anything or storing into anything (because no SQL type matches) but will still
+        // be correct for `dsl::exists(table.filter(something))`, as that will build to
+        // `EXISTS (SELECT 1 FROM table WHERE something)`
+        // In addition, the fact this is a valid expression enables keeping the usual trait bounds
+        // everywhere
         pass.push_sql("1");
         Ok(())
     }
