@@ -1,5 +1,8 @@
+use std::cell::RefCell;
 use std::num::NonZeroU32;
 use std::ops::Range;
+
+use super::PgMetadataLookup;
 
 /// Raw postgres value as received from the database
 #[derive(Clone, Copy)]
@@ -8,6 +11,16 @@ use std::ops::Range;
 pub struct PgValue<'a> {
     raw_value: &'a [u8],
     type_oid_lookup: &'a dyn TypeOidLookup,
+    metadata_lookup: &'a dyn PgMetadataLookupNonMut,
+}
+
+trait PgMetadataLookupNonMut {
+    fn lookup_type(&self, type_name: &str, schema: Option<&str>) -> super::PgTypeMetadata;
+}
+impl<L: PgMetadataLookup> PgMetadataLookupNonMut for RefCell<&'_ mut L> {
+    fn lookup_type(&self, type_name: &str, schema: Option<&str>) -> super::PgTypeMetadata {
+        self.borrow_mut().lookup_type(type_name, schema)
+    }
 }
 
 /// This is a helper trait to defer a type oid
@@ -77,15 +90,17 @@ impl<'a> PgValue<'a> {
     pub(in crate::pg) fn new_internal(
         raw_value: &'a [u8],
         type_oid_lookup: &'a dyn TypeOidLookup,
+        metadata_lookup: &'a RefCell<&mut impl PgMetadataLookup>,
     ) -> Self {
         Self {
             raw_value,
             type_oid_lookup,
+            metadata_lookup,
         }
     }
 
     /// Get the underlying raw byte representation
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &'a [u8] {
         self.raw_value
     }
 
@@ -99,5 +114,18 @@ impl<'a> PgValue<'a> {
             raw_value: &self.raw_value[range],
             ..*self
         }
+    }
+}
+
+impl PgMetadataLookup for PgValue<'_> {
+    fn lookup_type(&mut self, type_name: &str, schema: Option<&str>) -> super::PgTypeMetadata {
+        self.metadata_lookup.lookup_type(type_name, schema)
+    }
+
+    fn as_any<'a>(&mut self) -> &mut (dyn std::any::Any + 'a)
+    where
+        Self: 'a,
+    {
+        self
     }
 }

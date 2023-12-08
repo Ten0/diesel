@@ -213,12 +213,14 @@ where
         T: Query + QueryFragment<Self::Backend> + QueryId + 'query,
         Self::Backend: QueryMetadata<T::SqlType>,
     {
-        self.with_prepared_query(&source, |stmt, params, conn| {
-            use self::private::PgLoadingMode;
+        use self::private::PgLoadingMode;
+        let result = self.with_prepared_query(&source, |stmt, params, conn| {
             let result = stmt.execute(&mut conn.raw_connection, &params, Self::USE_ROW_BY_ROW_MODE);
-            let result = update_transaction_manager_status(result, conn)?;
-            Self::get_cursor(conn, result)
-        })
+            let result = update_transaction_manager_status(result, conn);
+            Self::on_first_result(conn)?;
+            result
+        })?;
+        Ok(Self::get_cursor(self, result))
     }
 }
 
@@ -394,35 +396,46 @@ mod private {
         type Cursor<'conn, 'query>: Iterator<Item = QueryResult<Self::Row<'conn, 'query>>>;
         type Row<'conn, 'query>: crate::row::Row<'conn, Pg>;
 
-        fn get_cursor<'query>(
-            raw_connection: &mut ConnectionAndTransactionManager,
+        fn on_first_result(conn: &mut ConnectionAndTransactionManager) -> QueryResult<()> {
+            Ok(())
+        }
+
+        fn get_cursor<'conn, 'query>(
+            conn: &mut PgConnection,
             result: PgResult,
-        ) -> QueryResult<Self::Cursor<'_, 'query>>;
+        ) -> Self::Cursor<'_, 'query>;
     }
 
     impl PgLoadingMode<DefaultLoadingMode> for PgConnection {
         const USE_ROW_BY_ROW_MODE: bool = false;
-        type Cursor<'conn, 'query> = Cursor;
-        type Row<'conn, 'query> = self::row::PgRow;
+        type Cursor<'conn, 'query> = Cursor<'conn>;
+        type Row<'conn, 'query> = self::row::PgRow<'conn>;
+
+        fn on_first_result(conn: &mut ConnectionAndTransactionManager) -> QueryResult<()> {
+            let next_res =
+                update_transaction_manager_status(conn.raw_connection.get_next_result(), conn)?;
+            debug_assert!(next_res.is_none());
+            Ok(())
+        }
 
         fn get_cursor<'query>(
-            conn: &mut ConnectionAndTransactionManager,
+            conn: &mut PgConnection,
             result: PgResult,
-        ) -> QueryResult<Self::Cursor<'_, 'query>> {
-            update_transaction_manager_status(Cursor::new(result, &mut conn.raw_connection), conn)
+        ) -> Self::Cursor<'_, 'query> {
+            Cursor::new(conn, result)
         }
     }
 
     impl PgLoadingMode<PgRowByRowLoadingMode> for PgConnection {
         const USE_ROW_BY_ROW_MODE: bool = true;
         type Cursor<'conn, 'query> = RowByRowCursor<'conn>;
-        type Row<'conn, 'query> = self::row::PgRow;
+        type Row<'conn, 'query> = self::row::PgRow<'conn>;
 
         fn get_cursor<'query>(
-            raw_connection: &mut ConnectionAndTransactionManager,
+            conn: &mut PgConnection,
             result: PgResult,
-        ) -> QueryResult<Self::Cursor<'_, 'query>> {
-            Ok(RowByRowCursor::new(result, raw_connection))
+        ) -> Self::Cursor<'_, 'query> {
+            RowByRowCursor::new(conn, result)
         }
     }
 }

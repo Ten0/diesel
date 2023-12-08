@@ -51,7 +51,11 @@ where
                 } else {
                     let (elem_bytes, new_bytes) = bytes.split_at(elem_size as usize);
                     bytes = new_bytes;
-                    T::from_sql(PgValue::new_internal(elem_bytes, &value))
+                    T::from_sql(PgValue::new_internal(
+                        elem_bytes,
+                        &value,
+                        value.metadata_lookup(),
+                    ))
                 }
             })
             .collect()

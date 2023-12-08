@@ -6,7 +6,7 @@ use std::result;
 use crate::backend::Backend;
 use crate::expression::select_by::SelectBy;
 use crate::row::{NamedRow, Row};
-use crate::sql_types::{SingleValue, SqlType, Untyped};
+use crate::sql_types::{HasSqlType, SingleValue, SqlType, Untyped};
 use crate::Selectable;
 
 /// A specialized result type representing the result of deserializing
@@ -425,7 +425,7 @@ pub use diesel_derives::QueryableByName;
         note = "Double check your type mappings via the documentation of `{A}`"
     )
 )]
-pub trait FromSql<A, DB: Backend>: Sized {
+pub trait FromSql<ST, DB: Backend>: Sized {
     /// See the trait documentation.
     fn from_sql(bytes: DB::RawValue<'_>) -> Result<Self>;
 
@@ -442,6 +442,28 @@ pub trait FromSql<A, DB: Backend>: Sized {
             Some(bytes) => Self::from_sql(bytes),
             None => Err(Box::new(crate::result::UnexpectedNullError)),
         }
+    }
+}
+
+pub(crate) trait FromSqlChecked<ST, DB: Backend>: FromSql<ST, DB> {
+    fn from_nullable_sql_checked(
+        bytes: Option<DB::RawValue<'_>>,
+        metadata_lookup: &mut DB::MetadataLookup,
+    ) -> Result<Self>;
+}
+impl<T, ST, DB: Backend> FromSqlChecked<ST, DB> for T
+where
+    T: FromSql<ST, DB>,
+    DB: HasSqlType<ST>,
+{
+    fn from_nullable_sql_checked(
+        raw_value: Option<DB::RawValue<'_>>,
+        metadata_lookup: &mut DB::MetadataLookup,
+    ) -> Result<Self> {
+        if let Some(ref raw_value) = raw_value {
+            <DB as HasSqlType<ST>>::check_type_compatibility(metadata_lookup, raw_value)?;
+        }
+        T::from_nullable_sql(raw_value)
     }
 }
 

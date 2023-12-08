@@ -1,37 +1,44 @@
-use super::raw::RawConnection;
 use super::result::PgResult;
 use super::row::PgRow;
+use super::PgConnection;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 #[allow(missing_debug_implementations)]
-pub struct Cursor {
+pub struct Cursor<'conn> {
     current_row: usize,
-    db_result: Rc<PgResult>,
+    inner: Rc<PgResultAndConn<'conn>>,
 }
 
-impl Cursor {
-    pub(super) fn new(result: PgResult, conn: &mut RawConnection) -> crate::QueryResult<Cursor> {
-        let next_res = conn.get_next_result()?;
-        debug_assert!(next_res.is_none());
-        Ok(Self {
+pub(super) struct PgResultAndConn<'conn> {
+    pub(super) db_result: PgResult,
+    pub(super) conn: RefCell<&'conn mut PgConnection>,
+}
+
+impl<'conn> Cursor<'conn> {
+    pub(super) fn new(conn: &'conn mut PgConnection, result: PgResult) -> Self {
+        Self {
             current_row: 0,
-            db_result: Rc::new(result),
-        })
+            inner: Rc::new(PgResultAndConn {
+                db_result: result,
+                conn: RefCell::new(conn),
+            }),
+        }
     }
 }
 
-impl ExactSizeIterator for Cursor {
+impl ExactSizeIterator for Cursor<'_> {
     fn len(&self) -> usize {
-        self.db_result.num_rows() - self.current_row
+        self.inner.db_result.num_rows() - self.current_row
     }
 }
 
-impl Iterator for Cursor {
-    type Item = crate::QueryResult<PgRow>;
+impl<'conn> Iterator for Cursor<'conn> {
+    type Item = crate::QueryResult<PgRow<'conn>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_row < self.db_result.num_rows() {
-            let row = self.db_result.clone().get_row(self.current_row);
+        if self.current_row < self.inner.db_result.num_rows() {
+            let row = PgRow::new(self.inner.clone(), self.current_row);
             self.current_row += 1;
             Some(Ok(row))
         } else {
@@ -40,7 +47,7 @@ impl Iterator for Cursor {
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.current_row = (self.current_row + n).min(self.db_result.num_rows());
+        self.current_row = (self.current_row + n).min(self.inner.db_result.num_rows());
         self.next()
     }
 
@@ -60,34 +67,37 @@ impl Iterator for Cursor {
 /// The type returned by various [`Connection`] methods.
 /// Acts as an iterator over `T`.
 #[allow(missing_debug_implementations)]
-pub struct RowByRowCursor<'a> {
+pub struct RowByRowCursor<'conn> {
     first_row: bool,
-    db_result: Rc<PgResult>,
-    conn: &'a mut super::ConnectionAndTransactionManager,
+    inner: Rc<PgResultAndConn<'conn>>,
 }
 
-impl<'a> RowByRowCursor<'a> {
-    pub(super) fn new(
-        db_result: PgResult,
-        conn: &'a mut super::ConnectionAndTransactionManager,
-    ) -> Self {
+impl<'conn> RowByRowCursor<'conn> {
+    pub(super) fn new(conn: &'conn mut PgConnection, result: PgResult) -> Self {
         RowByRowCursor {
             first_row: true,
-            db_result: Rc::new(db_result),
-            conn,
+            inner: Rc::new(PgResultAndConn {
+                db_result: result,
+                conn: RefCell::new(conn),
+            }),
         }
     }
 }
 
-impl Iterator for RowByRowCursor<'_> {
-    type Item = crate::QueryResult<PgRow>;
+impl<'conn> Iterator for RowByRowCursor<'conn> {
+    type Item = crate::QueryResult<PgRow<'conn>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.first_row {
-            let get_next_result = super::update_transaction_manager_status(
-                self.conn.raw_connection.get_next_result(),
-                self.conn,
-            );
+            let get_next_result = {
+                let mut conn = self.inner.conn.borrow_mut();
+                super::update_transaction_manager_status(
+                    conn.connection_and_transaction_manager
+                        .raw_connection
+                        .get_next_result(),
+                    &mut conn.connection_and_transaction_manager,
+                )
+            };
             match get_next_result {
                 Ok(Some(res)) => {
                     // we try to reuse the existing allocation here
@@ -104,10 +114,10 @@ impl Iterator for RowByRowCursor<'_> {
             }
         }
         // This contains either 1 (for a row containing data) or 0 (for the last one) rows
-        if self.db_result.num_rows() > 0 {
-            debug_assert_eq!(self.db_result.num_rows(), 1);
+        if self.inner.db_result.num_rows() > 0 {
+            debug_assert_eq!(self.inner.db_result.num_rows(), 1);
             self.first_row = false;
-            Some(Ok(self.db_result.clone().get_row(0)))
+            Some(Ok(PgRow::new(self.inner.clone(), 0)))
         } else {
             None
         }
@@ -116,13 +126,17 @@ impl Iterator for RowByRowCursor<'_> {
 
 impl Drop for RowByRowCursor<'_> {
     fn drop(&mut self) {
-        loop {
-            let res = super::update_transaction_manager_status(
-                self.conn.raw_connection.get_next_result(),
-                self.conn,
-            );
-            if matches!(res, Err(_) | Ok(None)) {
-                break;
+        if let Ok(mut conn) = self.conn.inner.try_borrow_mut() {
+            loop {
+                let res = super::update_transaction_manager_status(
+                    conn.connection_and_transaction_manager
+                        .raw_connection
+                        .get_next_result(),
+                    &mut conn.connection_and_transaction_manager,
+                );
+                if matches!(res, Err(_) | Ok(None)) {
+                    break;
+                }
             }
         }
     }

@@ -5,11 +5,9 @@ use self::pq_sys::*;
 use std::ffi::CStr;
 use std::num::NonZeroU32;
 use std::os::raw as libc;
-use std::rc::Rc;
 use std::{slice, str};
 
 use super::raw::{RawConnection, RawResult};
-use super::row::PgRow;
 use crate::result::{DatabaseErrorInformation, DatabaseErrorKind, Error, QueryResult};
 use crate::util::OnceCell;
 
@@ -107,10 +105,6 @@ impl PgResult {
 
     pub(super) fn num_rows(&self) -> usize {
         self.row_count
-    }
-
-    pub(super) fn get_row(self: Rc<Self>, idx: usize) -> PgRow {
-        PgRow::new(self, idx)
     }
 
     pub(super) fn get(&self, row_idx: usize, col_idx: usize) -> Option<&[u8]> {
