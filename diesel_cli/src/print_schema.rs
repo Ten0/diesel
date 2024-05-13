@@ -184,6 +184,13 @@ pub fn output_schema(
                         .map(|c| {
                             Some(&c.ty)
                                 .filter(|ty| !diesel_provided_types.contains(ty.rust_name.as_str()))
+                                // Skip types that are that match the regexes in the configuration
+                                .filter(|ty| {
+                                    !config
+                                        .except_custom_type_definitions
+                                        .iter()
+                                        .any(|rx| rx.is_match(ty.rust_name.as_str()))
+                                })
                                 .map(|ty| match backend {
                                     #[cfg(feature = "postgres")]
                                     Backend::Pg => ty.clone(),
@@ -256,7 +263,17 @@ pub fn output_schema(
             "Found patch file to apply to the generated schema"
         );
         tracing::trace!(?out, "Schema before applying patch file");
-        let patch = std::fs::read_to_string(patch_file)?;
+        let patch = match std::fs::read_to_string(patch_file) {
+            Ok(patch) => patch,
+            Err(e) => {
+                eprintln!(
+                    "Failed to read patch file at {}: {}",
+                    patch_file.display(),
+                    e
+                );
+                return Err(e.into());
+            }
+        };
         let patch = diffy::Patch::from_str(&patch)?;
 
         out = diffy::apply(&out, &patch)?;

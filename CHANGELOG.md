@@ -12,6 +12,7 @@ Increasing the minimal supported Rust version will always be coupled at least wi
 
 ### Added
 
+* Support `[print_schema] exclude_custom_type_definitions=["Vector"]`. If a `custom type` matches one element on the list it's skipped.
 * Added automatic usage of all sqlite `rowid` aliases when no explicit primary key is defined for `print-schema`
 * Added a `#[dsl::auto_type]` attribute macro, allowing to infer type of query fragment functions
 * Added the same type inference on `Selectable` derives, which allows skipping specifying `select_expression_type` most of the time, in turn enabling most queries to be written using just a `Selectable` derive.
@@ -21,10 +22,12 @@ Increasing the minimal supported Rust version will always be coupled at least wi
 * Support for libsqlite3-sys 0.28
 * Add `sqlite-integer-primary-key-is-bigint` configuration option, usable with SQLite 3.37 or above, allowing to use `BigInt` for `INTEGER PRIMARY KEY` columns in SQLite for tables without the `WITHOUT ROWID` attribute ([SQLite doc](https://www.sqlite.org/lang_createtable.html#rowid)).
 * Support for multiple `print_schema` entry in `diesel.toml` (e.g. `[print_schema.user1]`), which allows generating multiple schema.rs files
+* Add support for `COPY TO` and `COPY FROM` statements
 
 ### Changed
 
-* The minimal officially supported rustc version is now 1.70.0
+* The minimal officially supported rustc version is now 1.78.0
+* Deprecated `sql_function!` in favour of `define_sql_function!` which provides compatibility with `#[dsl::auto_type]`
 * Deserialization error messages now contain information about the field that failed to deserialize
 
 ## [2.1.0] 2023-05-26

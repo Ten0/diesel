@@ -57,7 +57,7 @@
 //!   They live in [the `dsl` module](dsl).
 //!   Diesel only supports a very small number of these functions.
 //!   You can declare additional functions you want to use
-//!   with [the `sql_function!` macro][`sql_function!`].
+//!   with [the `define_sql_function!` macro][`define_sql_function!`].
 //!
 //! [`std::ops`]: //doc.rust-lang.org/stable/std/ops/index.html
 //!
@@ -93,9 +93,6 @@
 //! As a general note it's always useful to read the complete error message as emitted
 //! by rustc, including the `required because of …` part of the message.
 //! Your IDE might hide important parts!
-//!
-//! If you use a nightly compiler you might want to enable the `nightly-error-messages`
-//! feature flag to automatically improve some error messages.
 //!
 //! The following error messages are common:
 //!
@@ -212,18 +209,12 @@
 //! explicitly opts out the stability guarantee given by diesel. This feature overrides the `with-deprecated`.
 //! Note that this may also remove items that are not shown as `#[deprecated]` in our documentation, due to
 //! various bugs in rustdoc. It can be used to check if you depend on any such hidden `#[deprecated]` item.
-//! - `nightly-error-messages`: This feature enables the generation of improved compiler error messages for
-//! common mistakes using diesel. This feature requires a nightly rust compiler and is considered to be unstable.
-//! It requires adding `#![feature(diagnostic_namespace)]` to your crate.
-//! We might remove it in future diesel versions without replacement or deprecation.
-//!
 //!
 //! By default the following features are enabled:
 //!
 //! - `with-deprecated`
 //! - `32-column-tables`
 
-#![cfg_attr(feature = "nightly-error-messages", feature(diagnostic_namespace))]
 #![cfg_attr(feature = "unstable", feature(trait_alias))]
 #![cfg_attr(doc_cfg, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(feature = "128-column-tables", recursion_limit = "256")]
@@ -333,6 +324,10 @@ pub mod dsl {
     };
 
     #[doc(inline)]
+    #[cfg(feature = "postgres_backend")]
+    pub use crate::query_builder::functions::{copy_from, copy_to};
+
+    #[doc(inline)]
     pub use diesel_derives::auto_type;
 
     #[cfg(feature = "postgres_backend")]
@@ -369,6 +364,14 @@ pub mod helper_types {
     pub type Select<Source, Selection> = <Source as SelectDsl<Selection>>::Output;
 
     /// Represents the return type of [`diesel::select(selection)`](crate::select)
+    #[allow(non_camel_case_types)] // required for `#[auto_type]`
+    pub type select<Selection> = crate::query_builder::SelectStatement<
+        crate::query_builder::NoFromClause,
+        SelectClause<Selection>,
+    >;
+
+    #[doc(hidden)]
+    #[deprecated(note = "Use `select` instead")]
     pub type BareSelect<Selection> = crate::query_builder::SelectStatement<
         crate::query_builder::NoFromClause,
         SelectClause<Selection>,
@@ -416,10 +419,12 @@ pub mod helper_types {
     pub type ThenOrderBy<Source, Ordering> = <Source as ThenOrderDsl<Ordering>>::Output;
 
     /// Represents the return type of [`.limit()`](crate::prelude::QueryDsl::limit)
-    pub type Limit<Source> = <Source as LimitDsl>::Output;
+    pub type Limit<Source, DummyArgForAutoType = i64> =
+        <Source as LimitDsl<DummyArgForAutoType>>::Output;
 
     /// Represents the return type of [`.offset()`](crate::prelude::QueryDsl::offset)
-    pub type Offset<Source> = <Source as OffsetDsl>::Output;
+    pub type Offset<Source, DummyArgForAutoType = i64> =
+        <Source as OffsetDsl<DummyArgForAutoType>>::Output;
 
     /// Represents the return type of [`.inner_join(rhs)`](crate::prelude::QueryDsl::inner_join)
     pub type InnerJoin<Source, Rhs> =
@@ -631,6 +636,43 @@ pub mod helper_types {
     #[deprecated(note = "Use `LoadQuery::RowIter` directly")]
     pub type LoadIter<'conn, 'query, Q, Conn, U, B = crate::connection::DefaultLoadingMode> =
         <Q as load_dsl::LoadQuery<'query, Conn, U, B>>::RowIter<'conn>;
+
+    /// Represents the return type of [`diesel::delete`]
+    #[allow(non_camel_case_types)] // required for `#[auto_type]`
+    pub type delete<T> = crate::query_builder::DeleteStatement<
+        <T as HasTable>::Table,
+        <T as IntoUpdateTarget>::WhereClause,
+    >;
+
+    /// Represents the return type of [`diesel::insert_into`]
+    #[allow(non_camel_case_types)] // required for `#[auto_type]`
+    pub type insert_into<T> = crate::query_builder::IncompleteInsertStatement<T>;
+
+    /// Represents the return type of [`diesel::insert_or_ignore_into`]
+    #[allow(non_camel_case_types)] // required for `#[auto_type]`
+    pub type insert_or_ignore_into<T> = crate::query_builder::IncompleteInsertOrIgnoreStatement<T>;
+
+    /// Represents the return type of [`diesel::replace_into`]
+    #[allow(non_camel_case_types)] // required for `#[auto_type]`
+    pub type replace_into<T> = crate::query_builder::IncompleteReplaceStatement<T>;
+
+    /// Represents the return type of
+    /// [`IncompleteInsertStatement::values()`](crate::query_builder::IncompleteInsertStatement::values)
+    pub type Values<I, U> = crate::query_builder::InsertStatement<
+        <I as crate::query_builder::insert_statement::InsertAutoTypeHelper>::Table,
+        <U as crate::Insertable<
+            <I as crate::query_builder::insert_statement::InsertAutoTypeHelper>::Table,
+        >>::Values,
+        <I as crate::query_builder::insert_statement::InsertAutoTypeHelper>::Op,
+    >;
+
+    /// Represents the return type of
+    /// [`UpdateStatement::set()`](crate::query_builder::UpdateStatement::set)
+    pub type Set<U, V> = crate::query_builder::UpdateStatement<
+        <U as crate::query_builder::update_statement::UpdateAutoTypeHelper>::Table,
+        <U as crate::query_builder::update_statement::UpdateAutoTypeHelper>::Where,
+        <V as crate::AsChangeset>::Changeset,
+    >;
 }
 
 pub mod prelude {
@@ -646,8 +688,15 @@ pub mod prelude {
     pub use crate::expression::{
         AppearsOnTable, BoxableExpression, Expression, IntoSql, Selectable, SelectableExpression,
     };
+    // If [`IntoSql`](crate::expression::helper_types::IntoSql) the type gets imported at the
+    // same time as IntoSql the trait (this one) gets imported via the prelude, then
+    // methods of the trait won't be resolved because the type may take priority over the trait.
+    // That issue can be avoided by also importing it anonymously:
+    pub use crate::expression::IntoSql as _;
 
     #[doc(inline)]
+    pub use crate::expression::functions::define_sql_function;
+    #[cfg(all(feature = "with-deprecated", not(feature = "without-deprecated")))]
     pub use crate::expression::functions::sql_function;
 
     #[doc(inline)]
@@ -677,6 +726,9 @@ pub mod prelude {
     #[cfg(feature = "mysql")]
     #[doc(inline)]
     pub use crate::mysql::MysqlConnection;
+    #[doc(inline)]
+    #[cfg(feature = "postgres_backend")]
+    pub use crate::pg::query_builder::copy::ExecuteCopyFromDsl;
     #[cfg(feature = "postgres")]
     #[doc(inline)]
     pub use crate::pg::PgConnection;
@@ -690,6 +742,9 @@ pub use crate::macros::table;
 pub use crate::prelude::*;
 #[doc(inline)]
 pub use crate::query_builder::debug_query;
+#[doc(inline)]
+#[cfg(feature = "postgres")]
+pub use crate::query_builder::functions::{copy_from, copy_to};
 #[doc(inline)]
 pub use crate::query_builder::functions::{
     delete, insert_into, insert_or_ignore_into, replace_into, select, sql_query, update,

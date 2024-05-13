@@ -27,7 +27,7 @@ jobs:
       matrix:
         rust: ["stable", "beta", "nightly"]
         backend: ["postgres", "sqlite", "mysql"]
-        os: [ubuntu-latest, macos-latest, macos-14, windows-2019]
+        os: [ubuntu-latest, macos-13, macos-14, windows-2019]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
@@ -118,18 +118,19 @@ jobs:
           echo "MYSQL_UNIT_TEST_DATABASE_URL=mysql://root:root@localhost/diesel_unit_test" >> $GITHUB_ENV
 
       - name: Install postgres (MacOS)
-        if: matrix.os == 'macos-latest' && matrix.backend == 'postgres'
+        if: matrix.os == 'macos-13' && matrix.backend == 'postgres'
         run: |
-          initdb -D /usr/local/var/postgres
-          pg_ctl -D /usr/local/var/postgres start
+          brew install postgresql@14
+          brew services start postgresql@14
           sleep 3
           createuser -s postgres
           echo "PG_DATABASE_URL=postgres://postgres@localhost/" >> $GITHUB_ENV
           echo "PG_EXAMPLE_DATABASE_URL=postgres://postgres@localhost/diesel_example" >> $GITHUB_ENV
+
       - name: Install postgres (MacOS M1)
         if: matrix.os == 'macos-14' && matrix.backend == 'postgres'
         run: |
-          brew install postgresql
+          brew install postgresql@14
           brew services start postgresql@14
           sleep 3
           createuser -s postgres
@@ -143,7 +144,7 @@ jobs:
           echo "SQLITE_DATABASE_URL=/tmp/test.db" >> $GITHUB_ENV
 
       - name: Install mysql (MacOS)
-        if: matrix.os == 'macos-latest' && matrix.backend == 'mysql'
+        if: matrix.os == 'macos-13' && matrix.backend == 'mysql'
         run: |
           brew install mariadb@10.5
           /usr/local/opt/mariadb@10.5/bin/mysql_install_db
@@ -323,7 +324,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2023-09-21
+          toolchain: stable
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
         with:
@@ -336,7 +337,7 @@ jobs:
 
       - name: Run compile tests
         shell: bash
-        run: cargo +nightly-2023-09-21  test --manifest-path diesel_compile_tests/Cargo.toml
+        run: cargo +stable  test --manifest-path diesel_compile_tests/Cargo.toml
 
   rustfmt_and_clippy:
     name: Check rustfmt style && run clippy
@@ -449,8 +450,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly
           components: "rust-src"
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -484,11 +486,11 @@ jobs:
         run: cargo +nightly -Z build-std test --manifest-path diesel/Cargo.toml --no-default-features --features "postgres pq-sys pq-sys/bundled pq-src/with-asan" --target x86_64-unknown-linux-gnu
 
   minimal_rust_version:
-    name: Check Minimal supported rust version (1.70.0)
+    name: Check Minimal supported rust version (1.78.0)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.70.0
+      - uses: dtolnay/rust-toolchain@1.78.0
       - uses: dtolnay/rust-toolchain@nightly
       - uses: taiki-e/install-action@cargo-hack
       - uses: taiki-e/install-action@cargo-minimal-versions
@@ -501,15 +503,15 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install libsqlite3-dev libpq-dev libmysqlclient-dev
       - name: Check diesel_derives
-        run: cargo +1.70.0 minimal-versions check -p diesel_derives --features "postgres sqlite mysql 32-column-tables 64-column-tables 128-column-tables without-deprecated with-deprecated r2d2"
+        run: cargo +1.78.0 minimal-versions check -p diesel_derives --features "postgres sqlite mysql 32-column-tables 64-column-tables 128-column-tables without-deprecated with-deprecated r2d2"
       - name: Check diesel
-        run: cargo +1.70.0 minimal-versions check -p diesel --features "postgres mysql sqlite extras"
+        run: cargo +1.78.0 minimal-versions check -p diesel --features "postgres mysql sqlite extras"
       - name: Check diesel_dynamic_schema
-        run: cargo +1.70.0 minimal-versions check -p diesel-dynamic-schema --all-features
+        run: cargo +1.78.0 minimal-versions check -p diesel-dynamic-schema --all-features
       - name: Check diesel_migrations
-        run: cargo +1.70.0 minimal-versions check -p diesel_migrations --all-features
+        run: cargo +1.78.0 minimal-versions check -p diesel_migrations --all-features
       - name: Check diesel_cli
-        run: cargo +1.70.0 minimal-versions check -p diesel_cli --features "default sqlite-bundled"
+        run: cargo +1.78.0 minimal-versions check -p diesel_cli --features "default sqlite-bundled"
 
   typos:
     name: Spell Check with Typos
