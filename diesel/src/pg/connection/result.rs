@@ -16,8 +16,8 @@ use std::cell::OnceCell;
 #[allow(missing_debug_implementations)]
 pub struct PgResult {
     internal_result: RawResult,
-    column_count: libc::c_int,
-    row_count: libc::c_int,
+    column_count: usize,
+    row_count: usize,
     // We store field names as pointer
     // as we cannot put a correct lifetime here
     // The value is valid as long as we haven't freed `RawResult`
@@ -34,8 +34,16 @@ impl PgResult {
             | ExecStatusType::PGRES_COPY_IN
             | ExecStatusType::PGRES_COPY_OUT
             | ExecStatusType::PGRES_TUPLES_OK => {
-                let column_count = unsafe { PQnfields(internal_result.as_ptr()) };
-                let row_count = unsafe { PQntuples(internal_result.as_ptr()) };
+                let column_count: i32 = unsafe { PQnfields(internal_result.as_ptr()) };
+                let column_count: usize = column_count.try_into().expect(
+                    "Diesel expects to run on a >= 32 bit OS \
+                        (or libpq is giving out negative column count)",
+                );
+                let row_count: i32 = unsafe { PQntuples(internal_result.as_ptr()) };
+                let row_count: usize = row_count.try_into().expect(
+                    "Diesel expects to run on a >= 32 bit OS \
+                        (or libpq is giving out negative row count)",
+                );
                 Ok(PgResult {
                     internal_result,
                     column_count,
@@ -108,10 +116,7 @@ impl PgResult {
     }
 
     pub(super) fn num_rows(&self) -> usize {
-        self.row_count.try_into().expect(
-            "Diesel expects to run on a >= 32 bit OS \
-                (or libpq is giving out negative row count)",
-        )
+        self.row_count
     }
 
     pub(super) fn get_row(self: Rc<Self>, idx: usize) -> PgRow {
@@ -192,10 +197,7 @@ impl PgResult {
     }
 
     pub(super) fn column_count(&self) -> usize {
-        self.column_count.try_into().expect(
-            "Diesel expects to run on a >= 32 bit OS \
-                (or libpq is giving out negative column count)",
-        )
+        self.column_count
     }
 }
 
