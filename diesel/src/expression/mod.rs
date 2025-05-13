@@ -37,13 +37,15 @@ pub(crate) mod nullable;
 #[macro_use]
 pub(crate) mod operators;
 mod case_when;
-pub mod cast;
+pub(crate) mod cast;
 pub(crate) mod select_by;
 mod sql_literal;
 pub(crate) mod subselect;
 
 #[cfg(feature = "i-implement-a-third-party-backend-and-opt-into-breaking-changes")]
 pub use self::operators::Concat;
+
+pub use cast::{CastsTo};
 
 // we allow unreachable_pub here
 // as rustc otherwise shows false positives
