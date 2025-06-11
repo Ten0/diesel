@@ -1,5 +1,5 @@
 [package]
-name = "ok"
+name = "temporary_basic_example"
 version = "0.1.0"
 authors = ["Sage Griffin <sean@seantheprogrammer.com>"]
 license = "MIT OR Apache-2.0"
