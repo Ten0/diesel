@@ -47,18 +47,14 @@ pub fn derive(item: DeriveInput) -> Result<TokenStream> {
         .map(|f| field_column_inst(f, &model))
         .collect::<Result<Vec<_>>>()?;
 
-    let check_function = if let Some(backends) =
-        if cfg!(debug_assertions) {
-            Some(Cow::Owned(
-                syn::parse::Parser::parse2(
-                    syn::punctuated::Punctuated::parse_terminated,
-                    quote!(::diesel::pg::Pg).into(),
-                )?
-            ))
-        } else {
-            model.check_for_backend.as_ref().map(Cow::Borrowed)
-        }
-    {
+    let check_function = if let Some(backends) = if cfg!(debug_assertions) {
+        Some(Cow::Owned(syn::parse::Parser::parse2(
+            syn::punctuated::Punctuated::parse_terminated,
+            quote!(diesel::pg::Pg).into(),
+        )?))
+    } else {
+        model.check_for_backend.as_ref().map(Cow::Borrowed)
+    } {
         let field_check_bound = model
             .fields()
             .iter()
