@@ -103,6 +103,7 @@ __with_asan_tests = [
     "mysqlclient-sys?/bundled",
     "mysqlclient-src?/with-asan",
 ]
+automatic-check-for-backend = ["diesel_derives/automatic-check-for-backend"]
 
 [package.metadata.docs.rs]
 features = ["postgres", "mysql", "sqlite", "extras"]
