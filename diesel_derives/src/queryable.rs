@@ -18,7 +18,7 @@ pub fn derive(item: DeriveInput) -> Result<TokenStream> {
     let build_expr = model.fields().iter().enumerate().map(|(i, f)| {
         let field_name = &f.name;
         let i = Index::from(i);
-        quote!(#field_name: std::convert::TryInto::try_into(row.#i)?)
+        quote!(#field_name: row.#i.try_into()?)
     });
     let sql_type = &(0..model.fields().len())
         .map(|i| {
@@ -46,6 +46,7 @@ pub fn derive(item: DeriveInput) -> Result<TokenStream> {
 
     Ok(wrap_in_dummy_mod(quote! {
         use diesel::row::{Row as _, Field as _};
+        use std::convert::TryInto;
 
         impl #impl_generics diesel::deserialize::Queryable<(#(#sql_type,)*), __DB> for #struct_name #ty_generics
             #where_clause
