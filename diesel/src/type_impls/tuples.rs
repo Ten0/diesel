@@ -3,6 +3,7 @@ use crate::backend::Backend;
 use crate::deserialize::{
     self, FromSqlRow, FromStaticSqlRow, Queryable, SqlTypeOrSelectable, StaticallySizedRow,
 };
+use crate::expression::nullable::from_static_sql_row_for_option_check_not_all_nullable;
 use crate::expression::{
     is_contained_in_group_by, AppearsOnTable, Expression, IsContainedInGroupBy, MixedAggregates,
     QueryMetadata, Selectable, SelectableExpression, TypedExpressionType, ValidGrouping,
@@ -261,12 +262,19 @@ macro_rules! tuple_impls {
                 __DB: Backend,
                 ($($ST,)*): SqlType,
                 __T: FromSqlRow<($($ST,)*), __DB>,
+                $($ST: IntoNullable,)*
             {
 
                 #[allow(non_snake_case, unused_variables, unused_mut)]
                 fn build_from_row<'a>(row: &impl Row<'a, __DB>)
                                       -> deserialize::Result<Self>
                 {
+                    const {
+                        from_static_sql_row_for_option_check_not_all_nullable::<
+                            ($($ST,)*),
+                            ($(<$ST as IntoNullable>::Nullable,)*),
+                        >();
+                    }
                     match <__T as FromSqlRow<($($ST,)*), __DB>>::build_from_row(row) {
                         Ok(v) => Ok(Some(v)),
                         Err(e) if e.is::<crate::result::UnexpectedNullError>() => Ok(None),
