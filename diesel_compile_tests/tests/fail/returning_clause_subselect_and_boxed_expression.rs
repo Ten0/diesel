@@ -18,11 +18,10 @@ table! {
     }
 }
 
-// Subselect via `.single_value()` in RETURNING — used to work before
-// `ReturningQuerySource` was introduced.
-// Fails because `ValidSubselect<QS>` for `SelectStatement<FromClause<F>, ...>`
-// requires `QS: QuerySource`, and `ReturningQuerySource` does not implement
-// `QuerySource`.
+allow_tables_to_appear_in_same_query!(users, posts);
+
+// Subselect via `.single_value()` in RETURNING — this works because
+// `ReturningQuerySource` implements `QuerySource`.
 fn subselect_in_returning() {
     use self::users::dsl::*;
     let mut connection = PgConnection::establish("").unwrap();
@@ -35,20 +34,13 @@ fn subselect_in_returning() {
     diesel::update(users.filter(id.eq(1)))
         .set(name.eq("Updated"))
         .returning(subselect)
-        //~^ ERROR: the trait bound `ReturningQuerySource<UpdateStmt, ...>: QuerySource` is not satisfied
-        //~| ERROR: the trait bound `FromClause<Join<table, ..., ...>>: AsQuerySource` is not satisfied
-        //~| ERROR: the trait bound `Join<table, ..., ...>: AppearsInFromClause<...>` is not satisfied
         .get_result::<Option<String>>(&mut connection)
-        //~^ ERROR: the trait bound `ReturningQuerySource<UpdateStmt, ...>: QuerySource` is not satisfied
-        //~| ERROR: the trait bound `FromClause<Join<table, ..., ...>>: AsQuerySource` is not satisfied
-        //~| ERROR: the trait bound `Join<table, ..., ...>: AppearsInFromClause<...>` is not satisfied
         .unwrap();
 }
 
-// Boxed expression in RETURNING — used to work before
-// `ReturningQuerySource` was introduced.
-// Fails because the boxed expression is parameterized over the table
-// (`users::table`) rather than `ReturningQuerySource<UpdateStmt, users::table>`.
+// Boxed expression in RETURNING — fails because the boxed expression is
+// parameterized over the table (`users::table`) rather than
+// `ReturningQuerySource<UpdateStmt, users::table>`.
 fn boxed_expression_in_returning() {
     let mut connection = PgConnection::establish("").unwrap();
 
