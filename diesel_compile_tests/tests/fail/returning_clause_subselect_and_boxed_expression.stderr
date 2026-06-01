@@ -1,0 +1,65 @@
+error[E0277]: cannot select `dyn BoxableExpression<table, Pg, SqlType = Text>` from `ReturningQuerySource<UpdateStmt, table>`
+   --> tests/fail/returning_clause_subselect_and_boxed_expression.rs:25:20
+    |
+ LL |         .returning(boxed_expr)
+    |          --------- ^^^^^^^^^^ unsatisfied trait bound
+    |          |
+    |          required by a bound introduced by this call
+    |
+    = help: the trait `SelectableExpression<diesel::query_builder::returning::returning_query_source::ReturningQuerySource<diesel::query_builder::returning::returning_query_source::UpdateStmt, users::table>>` is not implemented for `dyn BoxableExpression<table, Pg, SqlType = Text>`
+    = note: `dyn BoxableExpression<table, Pg, SqlType = Text>` is no valid selection for `ReturningQuerySource<UpdateStmt, table>`
+    = help: the following other types implement trait `SelectableExpression<QS>`:
+              `&'a T` implements `SelectableExpression<QS>`
+              `(T, T1)` implements `SelectableExpression<QS>`
+              `(T, T1, T2)` implements `SelectableExpression<QS>`
+              `(T, T1, T2, T3)` implements `SelectableExpression<QS>`
+              `(T, T1, T2, T3, T4)` implements `SelectableExpression<QS>`
+              `(T, T1, T2, T3, T4, T5)` implements `SelectableExpression<QS>`
+              `(T, T1, T2, T3, T4, T5, T6)` implements `SelectableExpression<QS>`
+              `(T, T1, T2, T3, T4, T5, T6, T7)` implements `SelectableExpression<QS>`
+            and N others
+    = note: required for `Box<...>` to implement `SelectableExpression<ReturningQuerySource<..., ...>>`
+    = note: required for `UpdateStatement<table, WhereClause<...>, ..., ...>` to implement `Query`
+note: required by a bound in `UpdateStatement::<T, U, V>::returning`
+   --> DIESEL/diesel/diesel/src/query_builder/update_statement/mod.rs
+    |
+LL |     pub fn returning<E>(self, returns: E) -> UpdateStatement<T, U, V, ReturningClause<E>>
+    |            --------- required by a bound in this associated function
+...
+LL |         UpdateStatement<T, U, V, ReturningClause<E>>: Query,
+    |                                                       ^^^^^ required by this bound in `UpdateStatement::<T, U, V>::returning`
+ 
+    
+error[E0277]: cannot select `dyn BoxableExpression<table, Pg, SqlType = Text>` from `ReturningQuerySource<UpdateStmt, table>`
+    --> tests/fail/returning_clause_subselect_and_boxed_expression.rs:27:31
+     |
+  LL |         .get_result::<String>(&mut connection)
+     |          ----------           ^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |          |
+     |          required by a bound introduced by this call
+     |
+     = help: the trait `SelectableExpression<diesel::query_builder::returning::returning_query_source::ReturningQuerySource<diesel::query_builder::returning::returning_query_source::UpdateStmt, users::table>>` is not implemented for `dyn BoxableExpression<table, Pg, SqlType = Text>`
+     = note: `dyn BoxableExpression<table, Pg, SqlType = Text>` is no valid selection for `ReturningQuerySource<UpdateStmt, table>`
+     = help: the following other types implement trait `SelectableExpression<QS>`:
+               `&'a T` implements `SelectableExpression<QS>`
+               `(T, T1)` implements `SelectableExpression<QS>`
+               `(T, T1, T2)` implements `SelectableExpression<QS>`
+               `(T, T1, T2, T3)` implements `SelectableExpression<QS>`
+               `(T, T1, T2, T3, T4)` implements `SelectableExpression<QS>`
+               `(T, T1, T2, T3, T4, T5)` implements `SelectableExpression<QS>`
+               `(T, T1, T2, T3, T4, T5, T6)` implements `SelectableExpression<QS>`
+               `(T, T1, T2, T3, T4, T5, T6, T7)` implements `SelectableExpression<QS>`
+             and N others
+     = note: required for `Box<...>` to implement `SelectableExpression<ReturningQuerySource<..., ...>>`
+     = note: required for `UpdateStatement<table, WhereClause<...>, ..., ...>` to implement `Query`
+     = note: required for `UpdateStatement<table, WhereClause<...>, ..., ...>` to implement `LoadQuery<'_, _, std::string::String>`
+note: required by a bound in `get_result`
+    --> DIESEL/diesel/diesel/src/query_dsl/mod.rs
+     |
+LL |     fn get_result<'query, U>(self, conn: &mut Conn) -> QueryResult<U>
+     |        ---------- required by a bound in this associated function
+LL |     where
+LL |         Self: LoadQuery<'query, Conn, U>,
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `RunQueryDsl::get_result`
+  
+     For more information about this error, try `rustc --explain E0277`.

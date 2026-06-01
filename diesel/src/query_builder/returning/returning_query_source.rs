@@ -5,8 +5,9 @@
 //! This module holds the items needed to type-check `RETURNING` clauses that are not specific
 //! to a particular backend.
 
+use crate::expression::SelectableExpression;
 use crate::query_source::joins::ToInnerJoin;
-use crate::query_source::{AppearsInFromClause, Once};
+use crate::query_source::{AppearsInFromClause, Never, QueryRelation, QuerySource, TableNotEqual};
 use core::marker::PhantomData;
 
 /// Statement-kind marker
@@ -35,10 +36,30 @@ pub struct InsertStmtWithOnConflictDoUpdate;
 #[derive(Debug, Clone, Copy)]
 pub struct ReturningQuerySource<StmtKind, T>(PhantomData<(StmtKind, T)>);
 
-impl<StmtKind, T> AppearsInFromClause<T> for ReturningQuerySource<StmtKind, T> {
-    type Count = Once;
+impl<StmtKind, T> QuerySource for ReturningQuerySource<StmtKind, T>
+where
+    T: QuerySource + Default,
+    T::DefaultSelection: SelectableExpression<Self>,
+{
+    type FromClause = T::FromClause;
+    type DefaultSelection = T::DefaultSelection;
+
+    fn from_clause(&self) -> Self::FromClause {
+        T::default().from_clause()
+    }
+
+    fn default_selection(&self) -> Self::DefaultSelection {
+        T::default().default_selection()
+    }
 }
 
+impl<StmtKind, T1, T2> AppearsInFromClause<T1> for ReturningQuerySource<StmtKind, T2>
+where
+    T1: TableNotEqual<T2> + QueryRelation,
+    T2: QueryRelation,
+{
+    type Count = Never;
+}
 // For typechecking of `old(column).nullable()`
 
 impl<T> ToInnerJoin for ReturningQuerySource<UpdateStmt, T> {
