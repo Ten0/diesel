@@ -7,7 +7,7 @@
 
 use crate::expression::SelectableExpression;
 use crate::query_source::joins::ToInnerJoin;
-use crate::query_source::{AppearsInFromClause, QuerySource};
+use crate::query_source::{AppearsInFromClause, Never, QueryRelation, QuerySource, TableNotEqual};
 use core::marker::PhantomData;
 
 /// Statement-kind marker
@@ -53,11 +53,12 @@ where
     }
 }
 
-impl<StmtKind, T, U> AppearsInFromClause<U> for ReturningQuerySource<StmtKind, T>
+impl<StmtKind, T1, T2> AppearsInFromClause<T1> for ReturningQuerySource<StmtKind, T2>
 where
-    T: AppearsInFromClause<U>,
+    T1: TableNotEqual<T2> + QueryRelation,
+    T2: QueryRelation,
 {
-    type Count = T::Count;
+    type Count = Never;
 }
 // For typechecking of `old(column).nullable()`
 

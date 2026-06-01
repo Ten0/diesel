@@ -754,21 +754,30 @@ fn returning_subselect_and_old_in_update() {
     // Tests that a RETURNING clause can combine `old(col)` with a correlated
     // subselect, and that `old(col)` can be used inside the subselect's WHERE
     // to correlate with the pre-update row.
-    let (was, now, post_by_new_id): (String, String, Option<String>) =
-        update(users::table.filter(users::id.eq(sean.id)))
-            .set(users::name.eq("Renamed"))
-            .returning((
-                old(users::name),
-                users::name,
-                posts::table
-                    .select(posts::title)
-                    .filter(posts::user_id.eq(users::id))
-                    .single_value(),
-            ))
-            .get_result(connection)
-            .unwrap();
+    let (was, now, post_by_new_id, post_by_old_id): (
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+    ) = update(users::table.filter(users::id.eq(sean.id)))
+        .set(users::name.eq("Renamed"))
+        .returning((
+            old(users::name),
+            users::name,
+            posts::table
+                .select(posts::title)
+                .filter(posts::user_id.eq(users::id))
+                .single_value(),
+            posts::table
+                .select(posts::title)
+                .filter(posts::user_id.eq(old(users::id)))
+                .single_value(),
+        ))
+        .get_result(connection)
+        .unwrap();
 
     assert_eq!("Sean", was);
     assert_eq!("Renamed", now);
     assert_eq!(Some("First Post".to_string()), post_by_new_id);
+    assert_eq!(Some("First Post".to_string()), post_by_old_id);
 }
