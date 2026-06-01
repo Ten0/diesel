@@ -28,7 +28,11 @@ fn main() {
     users
         .select(old(name).nullable())
         //~^ ERROR: cannot select `returning::old_impl::Old<columns::name>` from `users::table`
+        //~| ERROR: type mismatch resolving `<table as AppearsInFromClause<OldIdent>>::Count == Once`
+        //~| ERROR: type mismatch resolving `<table as AppearsInFromClause<...>>::Count == Once`
         .load::<Option<String>>(&mut connection)
         //~^ ERROR: cannot select `returning::old_impl::Old<columns::name>` from `users::table`
+        //~| ERROR: type mismatch resolving `<table as AppearsInFromClause<OldIdent>>::Count == Once`
+        //~| ERROR: type mismatch resolving `<table as AppearsInFromClause<...>>::Count == Once`
         .unwrap();
 }
