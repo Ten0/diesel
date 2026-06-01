@@ -23,4 +23,12 @@ fn main() {
         .load::<String>(&mut connection)
         //~^ ERROR: cannot select `returning::old_impl::Old<columns::name>` from `users::table`
         .unwrap();
+
+    // `old(col).nullable()` is also rejected outside RETURNING.
+    users
+        .select(old(name).nullable())
+        //~^ ERROR: cannot select `returning::old_impl::Old<columns::name>` from `users::table`
+        .load::<Option<String>>(&mut connection)
+        //~^ ERROR: cannot select `returning::old_impl::Old<columns::name>` from `users::table`
+        .unwrap();
 }

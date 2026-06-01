@@ -36,13 +36,6 @@ pub struct InsertStmtWithOnConflictDoUpdate;
 #[derive(Debug, Clone, Copy)]
 pub struct ReturningQuerySource<StmtKind, T>(PhantomData<(StmtKind, T)>);
 
-impl<StmtKind, T, U> AppearsInFromClause<U> for ReturningQuerySource<StmtKind, T>
-where
-    T: AppearsInFromClause<U>,
-{
-    type Count = T::Count;
-}
-
 impl<StmtKind, T> QuerySource for ReturningQuerySource<StmtKind, T>
 where
     T: QuerySource + Default,
@@ -60,6 +53,12 @@ where
     }
 }
 
+impl<StmtKind, T, U> AppearsInFromClause<U> for ReturningQuerySource<StmtKind, T>
+where
+    T: AppearsInFromClause<U>,
+{
+    type Count = T::Count;
+}
 // For typechecking of `old(column).nullable()`
 
 impl<T> ToInnerJoin for ReturningQuerySource<UpdateStmt, T> {

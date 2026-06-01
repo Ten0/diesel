@@ -1,5 +1,5 @@
 error[E0277]: cannot select `dyn BoxableExpression<table, Pg, SqlType = Text>` from `ReturningQuerySource<UpdateStmt, table>`
-   --> tests/fail/returning_clause_subselect_and_boxed_expression.rs:53:20
+   --> tests/fail/returning_clause_subselect_and_boxed_expression.rs:25:20
     |
  LL |         .returning(boxed_expr)
     |          --------- ^^^^^^^^^^ unsatisfied trait bound
@@ -31,7 +31,7 @@ LL |         UpdateStatement<T, U, V, ReturningClause<E>>: Query,
  
     
 error[E0277]: cannot select `dyn BoxableExpression<table, Pg, SqlType = Text>` from `ReturningQuerySource<UpdateStmt, table>`
-    --> tests/fail/returning_clause_subselect_and_boxed_expression.rs:55:31
+    --> tests/fail/returning_clause_subselect_and_boxed_expression.rs:27:31
      |
   LL |         .get_result::<String>(&mut connection)
      |          ----------           ^^^^^^^^^^^^^^^ unsatisfied trait bound
